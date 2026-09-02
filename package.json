@@ -1,0 +1,25 @@
+{
+  "name": "ulp3-data-stream-inspector",
+  "version": "1.0.0",
+  "description": "Production-grade ULP Data Stream Inspector for Android Termux (Snapdragon 8 Elite)",
+  "type": "module",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "termux": "bash start.sh",
+    "dev:server": "node server/server.js",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:client",
+    "test:parser": "node server/test/test_parser.js",
+    "test:e2e": "node server/test/test_e2e.js",
+    "generate:logs": "node generate_mock_data.js"
+  },
+  "keywords": ["termux", "snapdragon", "ulp", "ripgrep", "sse", "stream", "fastify"],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
