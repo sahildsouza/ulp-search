@@ -132,7 +132,7 @@ function calculateCpuUsage() {
   return {
     cores: cpus.length,
     usagePercent: parseFloat(usagePercent.toFixed(1)),
-    model: cpus[0]?.model || 'Qualcomm Snapdragon 8 Elite'
+    model: cpus[0]?.model || 'Unknown CPU'
   };
 }
 
@@ -178,12 +178,10 @@ export function getSystemTelemetry(activeSearchProcess = null) {
 
   return {
     soc: {
-      name: 'Qualcomm Snapdragon 8 Elite',
-      architecture: 'ARMv8.5-A / Oryon 2nd Gen',
-      primeCores: 2,
-      perfCores: 6,
-      totalCores: 8,
-      hardwareThreads: 8
+      name: cpu.model,
+      architecture: os.arch(),
+      totalCores: cpu.cores,
+      hardwareThreads: cpu.cores
     },
     ram: {
       totalBytes: mem.total,

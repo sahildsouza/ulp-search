@@ -59,11 +59,10 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
         {/* Chipset badge */}
         <button
           onClick={onOpenDrawer}
-          className="flex items-center gap-1.5 px-2 py-[3px] rounded-md bg-cyan-500/[0.08] border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/[0.12] transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-2 py-[3px] rounded-md bg-cyan-500/[0.08] border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/[0.12] transition-colors flex-shrink-0 max-w-[120px] sm:max-w-[200px]"
         >
-          <Zap className="w-3 h-3 text-cyan-400" />
-          <span className="font-mono-code text-[10px] sm:text-[11px] font-bold">SD 8 Elite</span>
-          <span className="font-mono-code text-[9px] text-cyan-500/60 hidden md:inline">· 2P+6E Oryon</span>
+          <Zap className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+          <span className="font-mono-code text-[10px] sm:text-[11px] font-bold truncate">{stats?.soc?.name || 'Local System'}</span>
         </button>
 
         {/* Metrics strip */}

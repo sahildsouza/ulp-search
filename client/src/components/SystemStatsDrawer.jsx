@@ -55,7 +55,7 @@ export function SystemStatsDrawer({ isOpen, onClose, stats }) {
             </div>
             <div>
               <h2 className="text-xs font-bold text-white font-mono-code tracking-wide">SYSTEM TELEMETRY</h2>
-              <p className="text-[9px] text-zinc-500 font-mono-code">Snapdragon 8 Elite · Diagnostics</p>
+              <p className="text-[9px] text-zinc-500 font-mono-code">{soc.name || 'Local'} · Diagnostics</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors">
@@ -66,11 +66,10 @@ export function SystemStatsDrawer({ isOpen, onClose, stats }) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono-code">
 
-          <SectionCard icon={<Zap className="w-3 h-3" />} title="Snapdragon Architecture">
-            <StatRow label="SoC"><span className="text-white font-semibold">{soc.name || 'Snapdragon 8 Elite'}</span></StatRow>
-            <StatRow label="Architecture"><span className="text-zinc-300">{soc.architecture || 'ARMv8.5-A / Oryon 2nd Gen'}</span></StatRow>
-            <StatRow label="Prime Cores"><span className="text-cyan-300">2x Oryon @ 4.32 GHz</span></StatRow>
-            <StatRow label="Perf Cores"><span className="text-cyan-300">6x Oryon @ 3.53 GHz</span></StatRow>
+          <SectionCard icon={<Zap className="w-3 h-3" />} title="System Architecture">
+            <StatRow label="SoC"><span className="text-white font-semibold break-all text-right max-w-[160px]">{soc.name || 'Unknown CPU'}</span></StatRow>
+            <StatRow label="Architecture"><span className="text-zinc-300">{soc.architecture || 'Unknown'}</span></StatRow>
+            <StatRow label="Hardware Threads"><span className="text-cyan-300">{soc.hardwareThreads || 8} Threads</span></StatRow>
             <StatRow label="RG Threads"><span className="text-emerald-400 font-bold">8 (-j 8)</span></StatRow>
           </SectionCard>
 
