@@ -3,7 +3,7 @@ import { SearchControls } from '../components/SearchControls';
 import { PerFileBreakdown } from '../components/PerFileBreakdown';
 import { VirtualizedFeed } from '../components/VirtualizedFeed';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { exportToTxt, exportToJson } from '../utils/exportUtils';
+import { exportToTxt } from '../utils/exportUtils';
 import { AlertCircle } from 'lucide-react';
 
 export function InspectorSearch({ streamState, copyMemory, onNotify }) {
@@ -72,12 +72,6 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
     onNotify?.(`Exported ${d.length} records (.txt)`, 'success');
   };
 
-  const handleExportJson = () => {
-    const d = selectedIds.size > 0 ? filteredItems.filter(i => selectedIds.has(i.id)) : filteredItems;
-    exportToJson(d, `ulp_export_${Date.now()}.json`);
-    onNotify?.(`Exported ${d.length} records (.json)`, 'success');
-  };
-
   const handleSelectFileFilter = (filename) => { 
     if (filterQuery === filename) {
       setFilterQuery(''); 
@@ -99,7 +93,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
         confidenceFilter={confidenceFilter} setConfidenceFilter={setConfidenceFilter}
         totalItemsCount={items.length}
         filteredCount={filteredItems.length} selectedCount={selectedIds.size} onSelectAll={handleSelectAll}
-        onCopySelected={handleCopySelected} onExportTxt={handleExportTxt} onExportJson={handleExportJson}
+        onCopySelected={handleCopySelected} onExportTxt={handleExportTxt}
         onClear={clearStream} mainInputRef={mainInputRef} filterInputRef={filterInputRef}
         searchDomainOnly={searchDomainOnly} setSearchDomainOnly={setSearchDomainOnly}
       />

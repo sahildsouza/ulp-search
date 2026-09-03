@@ -1,12 +1,12 @@
 import React from 'react';
-import { Search, Filter, Play, Pause, Square, CheckSquare, Copy, FileText, FileCode, Trash2, XCircle, Globe } from 'lucide-react';
+import { Search, Filter, Play, Pause, Square, CheckSquare, Copy, FileText, Trash2, XCircle, Globe } from 'lucide-react';
 
 export function SearchControls({
   searchQuery, setSearchQuery, onStartSearch, streamStatus,
   onPauseResume, onStopEngine, filterQuery, setFilterQuery,
   confidenceFilter, setConfidenceFilter,
   totalItemsCount, filteredCount, selectedCount,
-  onSelectAll, onCopySelected, onExportTxt, onExportJson, onClear,
+  onSelectAll, onCopySelected, onExportTxt, onClear,
   mainInputRef, filterInputRef,
   searchDomainOnly = false, setSearchDomainOnly
 }) {
@@ -169,15 +169,15 @@ export function SearchControls({
             Copy{selectedCount > 0 ? ` (${selectedCount})` : ''}
           </button>
 
-          {/* Export buttons */}
-          <div className="flex items-center h-7 rounded-md border border-white/[0.06] overflow-hidden bg-white/[0.02]">
-            <button onClick={onExportTxt} disabled={filteredCount === 0} className="h-full px-2 flex items-center gap-1 text-zinc-400 hover:text-white disabled:opacity-30 border-r border-white/[0.06] transition-colors">
-              <FileText className="w-3 h-3" />TXT
-            </button>
-            <button onClick={onExportJson} disabled={filteredCount === 0} className="h-full px-2 flex items-center gap-1 text-zinc-400 hover:text-white disabled:opacity-30 transition-colors">
-              <FileCode className="w-3 h-3" />JSON
-            </button>
-          </div>
+          {/* Export button */}
+          <button
+            onClick={onExportTxt}
+            disabled={filteredCount === 0}
+            className="h-7 px-2 rounded-md bg-white/[0.03] border border-white/[0.05] text-zinc-400 hover:text-white disabled:opacity-30 flex items-center gap-1 transition-colors"
+          >
+            <FileText className="w-3 h-3 text-cyan-400" />
+            <span>TXT</span>
+          </button>
 
           {totalItemsCount > 0 && (
             <button onClick={onClear} className="h-7 w-7 rounded-md bg-white/[0.03] border border-white/[0.05] text-zinc-500 hover:text-rose-400 hover:border-rose-500/25 flex items-center justify-center transition-colors">
