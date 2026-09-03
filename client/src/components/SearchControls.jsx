@@ -46,14 +46,13 @@ export function SearchControls({
             title={searchDomainOnly ? "Domain-only active: Only searches in domain (e.g. example.com:user:pass)" : "Click to search ONLY in domains (e.g. example.com)"}
             className={`h-10 sm:h-11 px-2.5 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold font-mono-code flex items-center gap-1.5 flex-shrink-0 transition-all border ${
               searchDomainOnly
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_16px_rgba(6,182,212,0.35),inset_0_0_12px_rgba(6,182,212,0.15)] ring-1 ring-cyan-400/30'
                 : 'bg-white/[0.03] text-zinc-400 border-white/[0.07] hover:text-zinc-200 hover:bg-white/[0.06]'
             }`}
           >
-            <Globe className={`w-3.5 h-3.5 ${searchDomainOnly ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'}`} />
+            <Globe className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${searchDomainOnly ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)] scale-105' : 'text-zinc-500'}`} />
             <span className="hidden xs:inline">Domain</span>
             <span className="hidden md:inline">Only</span>
-            {searchDomainOnly && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
           </button>
         )}
 
