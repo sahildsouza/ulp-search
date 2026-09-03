@@ -6,15 +6,15 @@ import {
 } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
-function MetricCard({ label, icon, value, valueColor = 'text-white', sub }) {
+function MetricCard({ label, shortLabel, icon, value, valueColor = 'text-white', sub }) {
   return (
-    <div className="p-3 sm:p-4 rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-1">
-      <div className="flex items-center justify-between text-zinc-500 text-[10px] uppercase tracking-wider">
-        <span>{label}</span>
-        {icon}
+    <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-0.5 sm:space-y-1 min-w-0">
+      <div className="flex items-center justify-between text-zinc-500 text-[8px] sm:text-[10px] uppercase tracking-wider font-semibold">
+        <span className="truncate">{shortLabel ? <><span className="sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span></> : label}</span>
+        <span className="hidden sm:block flex-shrink-0">{icon}</span>
       </div>
-      <div className={`text-lg sm:text-xl font-bold ${valueColor}`}>{value}</div>
-      <div className="text-[9px] text-zinc-600 truncate">{sub}</div>
+      <div className={`text-xs sm:text-base lg:text-lg font-bold ${valueColor} truncate leading-tight`}>{value}</div>
+      <div className="text-[8px] sm:text-[9px] text-zinc-600 truncate hidden xs:block">{sub}</div>
     </div>
   );
 }
@@ -168,23 +168,18 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 py-4 sm:py-5 space-y-3 font-mono-code text-xs">
 
-      {/* ── Metric Cards Grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      {/* ── Metric Cards Grid (Compact 4-Column Single Row on Mobile & Desktop) ── */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
         <MetricCard 
-          label="Total Records" 
+          label="Total Records"
+          shortLabel="Records"
           icon={<Layers className="w-3.5 h-3.5 text-cyan-400" />} 
           value={formatNumber(analytics.totalItems)} 
-          sub="Streamed credentials" 
-        />
-        <MetricCard 
-          label="Unique Domains" 
-          icon={<Globe className="w-3.5 h-3.5 text-cyan-400" />} 
-          value={formatNumber(analytics.uniqueDomains)} 
-          valueColor="text-cyan-400" 
-          sub="Distinct hostnames" 
+          sub="Streamed" 
         />
         <MetricCard 
           label="E:P (Emails)" 
+          shortLabel="E:P"
           icon={<Mail className="w-3.5 h-3.5 text-emerald-400" />} 
           value={`${analytics.epRatio}%`} 
           valueColor="text-emerald-400" 
@@ -192,6 +187,7 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
         />
         <MetricCard 
           label="U:P (Usernames)" 
+          shortLabel="U:P"
           icon={<User className="w-3.5 h-3.5 text-cyan-300" />} 
           value={`${analytics.upRatio}%`} 
           valueColor="text-cyan-300" 
@@ -199,6 +195,7 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
         />
         <MetricCard 
           label="M:P (Mobiles)" 
+          shortLabel="M:P"
           icon={<Phone className="w-3.5 h-3.5 text-amber-400" />} 
           value={`${analytics.mpRatio}%`} 
           valueColor="text-amber-400" 
