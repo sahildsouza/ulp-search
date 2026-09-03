@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
-  BarChart3, Globe, Mail, User, Phone, HelpCircle, 
-  Layers, TrendingUp, ExternalLink, PieChart, Search, X, 
-  KeyRound, ShieldCheck 
+  BarChart3, Mail, User, Phone, 
+  Layers, TrendingUp, ExternalLink, PieChart, Search, X 
 } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
@@ -201,69 +200,6 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
           valueColor="text-amber-400" 
           sub={`${formatNumber(analytics.mpCount)} pairs`} 
         />
-      </div>
-
-      {/* ── Classification Breakdown Bar ── */}
-      <div className="p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-          <span className="font-bold text-white uppercase text-[10px] tracking-wider flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Credential Classification Breakdown</span>
-          </span>
-          <div className="flex items-center gap-3 text-[9px] flex-wrap">
-            <span className="flex items-center gap-1 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              E:P {analytics.epRatio}% ({formatNumber(analytics.epCount)})
-            </span>
-            <span className="flex items-center gap-1 text-cyan-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-              U:P {analytics.upRatio}% ({formatNumber(analytics.upCount)})
-            </span>
-            <span className="flex items-center gap-1 text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              M:P {analytics.mpRatio}% ({formatNumber(analytics.mpCount)})
-            </span>
-            <span className="flex items-center gap-1 text-rose-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-              UK {analytics.ukRatio}% ({formatNumber(analytics.ukCount)})
-            </span>
-          </div>
-        </div>
-        <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden flex">
-          <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${analytics.epRatio}%` }} title={`Email:Pass: ${analytics.epRatio}%`} />
-          <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${analytics.upRatio}%` }} title={`User:Pass: ${analytics.upRatio}%`} />
-          <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${analytics.mpRatio}%` }} title={`Mobile:Pass: ${analytics.mpRatio}%`} />
-          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${analytics.ukRatio}%` }} title={`Unknown: ${analytics.ukRatio}%`} />
-        </div>
-      </div>
-
-      {/* ── Password Security Profile ── */}
-      <div className="p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-          <span className="font-bold text-white uppercase text-[10px] tracking-wider flex items-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-            <span>Password Security Profile (Avg: {analytics.avgPassLen} chars)</span>
-          </span>
-          <div className="flex items-center gap-3 text-[9px] flex-wrap">
-            <span className="flex items-center gap-1 text-rose-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-              Short (&lt;8 chars) {analytics.weakPassRatio}%
-            </span>
-            <span className="flex items-center gap-1 text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              Medium (8-12 chars) {analytics.medPassRatio}%
-            </span>
-            <span className="flex items-center gap-1 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Strong (&gt;12 chars) {analytics.strongPassRatio}%
-            </span>
-          </div>
-        </div>
-        <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden flex">
-          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${analytics.weakPassRatio}%` }} />
-          <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${analytics.medPassRatio}%` }} />
-          <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${analytics.strongPassRatio}%` }} />
-        </div>
       </div>
 
       {/* ── Leaderboard + TLD ── */}
