@@ -67,10 +67,13 @@ export function SystemStatsDrawer({ isOpen, onClose, stats }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono-code">
 
           <SectionCard icon={<Zap className="w-3 h-3" />} title="System Architecture">
-            <StatRow label="SoC"><span className="text-white font-semibold break-all text-right max-w-[160px]">{soc.name || 'Unknown CPU'}</span></StatRow>
+            <StatRow label="SoC"><span className="text-white font-semibold break-all text-right max-w-[240px]">{soc.name || 'Local Processor'}</span></StatRow>
             <StatRow label="Architecture"><span className="text-zinc-300">{soc.architecture || 'Unknown'}</span></StatRow>
             <StatRow label="Hardware Threads"><span className="text-cyan-300">{soc.hardwareThreads || 8} Threads</span></StatRow>
             <StatRow label="RG Threads"><span className="text-emerald-400 font-bold">8 (-j 8)</span></StatRow>
+            {soc.detectedFrom && (
+              <StatRow label="Source"><span className="text-zinc-500 text-[10px]">{soc.detectedFrom}</span></StatRow>
+            )}
           </SectionCard>
 
           <SectionCard icon={<HardDrive className="w-3 h-3" />} title="RAM (/proc/meminfo)">
