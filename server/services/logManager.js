@@ -2,11 +2,42 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 
+const CACHE_FILENAME = '.ulp_log_cache.json';
+
 // In-memory line count cache keyed by filePath:mtime:size
 const lineCountCache = new Map();
 
+// In-memory persistent metadata cache
+let persistentCache = null;
+
 // In-memory active file set (all active by default)
 const excludedFiles = new Set();
+
+/**
+ * Loads persistent cache from disk
+ */
+function loadPersistentCache(dir) {
+  try {
+    const cachePath = path.join(dir, CACHE_FILENAME);
+    if (fs.existsSync(cachePath)) {
+      const data = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+      if (data && typeof data === 'object') {
+        return data;
+      }
+    }
+  } catch {}
+  return {};
+}
+
+/**
+ * Saves persistent cache to disk safely
+ */
+function savePersistentCache(dir, cache) {
+  try {
+    const cachePath = path.join(dir, CACHE_FILENAME);
+    fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2), 'utf-8');
+  } catch {}
+}
 
 /**
  * Resolves logs directory, checking Termux ~/logs first, then local fallback
@@ -19,7 +50,6 @@ export function getLogsDirectory() {
     return termuxLogs;
   }
 
-
   const localLogs = path.resolve('logs');
   if (!fs.existsSync(localLogs)) {
     fs.mkdirSync(localLogs, { recursive: true });
@@ -28,7 +58,7 @@ export function getLogsDirectory() {
 }
 
 /**
- * Fast streaming line counter using 64KB buffer chunking
+ * Fast streaming line counter using 256KB buffer chunking
  */
 export async function countLines(filePath, stat) {
   const cacheKey = `${filePath}:${stat.mtimeMs}:${stat.size}`;
@@ -38,7 +68,7 @@ export async function countLines(filePath, stat) {
 
   return new Promise((resolve) => {
     let count = 0;
-    const stream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 });
+    const stream = fs.createReadStream(filePath, { highWaterMark: 256 * 1024 });
 
     stream.on('data', (chunk) => {
       for (let i = 0; i < chunk.length; i++) {
@@ -71,41 +101,101 @@ export function formatBytes(bytes) {
 }
 
 /**
- * Scans log directory and returns list of .txt log files with metadata
+ * Scans log directory and returns list of .txt log files with metadata.
+ * Uses persistent caching so existing files are fetched instantly in < 1ms
+ * and only new or modified files are scanned.
  */
-export async function listLogFiles() {
+export async function listLogFiles(forceRefresh = false) {
   const dir = getLogsDirectory();
   if (!fs.existsSync(dir)) {
-    return { dir, files: [] };
+    return { dir, files: [], version: 'empty' };
+  }
+
+  if (!persistentCache || forceRefresh) {
+    persistentCache = loadPersistentCache(dir);
   }
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const txtFiles = entries.filter(e => e.isFile() && e.name.toLowerCase().endsWith('.txt'));
+  const txtFiles = entries.filter(e => 
+    e.isFile() && 
+    e.name.toLowerCase().endsWith('.txt') && 
+    !e.name.startsWith('.')
+  );
+
+  const currentFileNames = new Set(txtFiles.map(e => e.name));
+  let cacheModified = false;
+
+  // Clean removed files from cache
+  for (const cachedName of Object.keys(persistentCache)) {
+    if (!currentFileNames.has(cachedName)) {
+      delete persistentCache[cachedName];
+      cacheModified = true;
+    }
+  }
 
   const results = await Promise.all(
     txtFiles.map(async (entry) => {
       const fullPath = path.join(dir, entry.name);
       try {
         const stat = fs.statSync(fullPath);
+        const cached = persistentCache[entry.name];
+
+        // If file already cached and unchanged, reuse immediately without reading disk!
+        if (!forceRefresh && cached && cached.sizeBytes === stat.size && cached.mtimeMs === stat.mtimeMs) {
+          return {
+            name: entry.name,
+            path: fullPath,
+            sizeBytes: cached.sizeBytes,
+            sizeFormatted: cached.sizeFormatted || formatBytes(cached.sizeBytes),
+            lineCount: cached.lineCount,
+            mtimeMs: cached.mtimeMs,
+            lastModified: cached.lastModified || stat.mtime.toISOString(),
+            isActive: !excludedFiles.has(entry.name)
+          };
+        }
+
+        // New or modified file: count lines and cache
         const lineCount = await countLines(fullPath, stat);
-        return {
+        const fileData = {
           name: entry.name,
           path: fullPath,
           sizeBytes: stat.size,
           sizeFormatted: formatBytes(stat.size),
           lineCount,
+          mtimeMs: stat.mtimeMs,
           lastModified: stat.mtime.toISOString(),
           isActive: !excludedFiles.has(entry.name)
         };
+
+        persistentCache[entry.name] = {
+          sizeBytes: stat.size,
+          sizeFormatted: fileData.sizeFormatted,
+          lineCount,
+          mtimeMs: stat.mtimeMs,
+          lastModified: fileData.lastModified
+        };
+        cacheModified = true;
+
+        return fileData;
       } catch (err) {
         return null;
       }
     })
   );
 
+  if (cacheModified) {
+    savePersistentCache(dir, persistentCache);
+  }
+
+  const validFiles = results.filter(Boolean).sort((a, b) => b.sizeBytes - a.sizeBytes);
+  const totalBytes = validFiles.reduce((acc, f) => acc + (f.sizeBytes || 0), 0);
+  const latestMtime = Math.max(...validFiles.map(f => f.mtimeMs || 0), 0);
+  const version = `${validFiles.length}_${totalBytes}_${latestMtime}`;
+
   return {
     dir,
-    files: results.filter(Boolean).sort((a, b) => b.sizeBytes - a.sizeBytes)
+    files: validFiles,
+    version
   };
 }
 
@@ -150,6 +240,11 @@ export function renameLogFile(oldName, newName) {
     excludedFiles.delete(oldName);
     excludedFiles.add(safeNewName);
   }
+  if (persistentCache && persistentCache[oldName]) {
+    persistentCache[safeNewName] = persistentCache[oldName];
+    delete persistentCache[oldName];
+    savePersistentCache(dir, persistentCache);
+  }
   return { oldName, newName: safeNewName };
 }
 
@@ -159,6 +254,7 @@ export function renameLogFile(oldName, newName) {
 export function deleteLogFiles(filenames) {
   const dir = getLogsDirectory();
   const deleted = [];
+  let cacheModified = false;
 
   for (const fn of filenames) {
     const fullPath = path.join(dir, fn);
@@ -166,7 +262,15 @@ export function deleteLogFiles(filenames) {
       fs.unlinkSync(fullPath);
       excludedFiles.delete(fn);
       deleted.push(fn);
+      if (persistentCache && persistentCache[fn]) {
+        delete persistentCache[fn];
+        cacheModified = true;
+      }
     }
+  }
+
+  if (cacheModified) {
+    savePersistentCache(dir, persistentCache);
   }
 
   return deleted;

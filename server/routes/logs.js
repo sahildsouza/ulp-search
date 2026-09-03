@@ -7,9 +7,15 @@ import {
 } from '../services/logManager.js';
 
 export async function logRoutes(fastify, options) {
-  // List all log files with metadata and line counts
+  // List all log files with metadata and line counts (cached)
   fastify.get('/api/logs', async (req, reply) => {
-    const data = await listLogFiles();
+    const forceRefresh = req.query?.refresh === '1';
+    const clientVersion = req.query?.version;
+    const data = await listLogFiles(forceRefresh);
+
+    if (clientVersion && clientVersion === data.version && !forceRefresh) {
+      return { notModified: true, version: data.version };
+    }
     return data;
   });
 

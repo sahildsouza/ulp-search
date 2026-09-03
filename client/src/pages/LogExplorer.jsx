@@ -2,6 +2,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FolderSearch, FileText, RefreshCw, Trash2, Edit3, PlusCircle, Folder, Search, X } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
+const LOGS_CACHE_KEY = 'ulp_log_cache_v2';
+
+function getLocalCachedLogs() {
+  try {
+    const saved = localStorage.getItem(LOGS_CACHE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.files)) return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+function saveLocalCachedLogs(data) {
+  try {
+    if (data && Array.isArray(data.files)) {
+      localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(data));
+    }
+  } catch {}
+}
+
 /* ── Shared Modal Shell ── */
 function Modal({ isOpen, children }) {
   if (!isOpen) return null;
@@ -13,23 +34,52 @@ function Modal({ isOpen, children }) {
 }
 
 export function LogExplorer({ onNotify }) {
-  const [logsData, setLogsData] = useState({ dir: '', files: [] });
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCache = useMemo(() => getLocalCachedLogs(), []);
+  const [logsData, setLogsData] = useState(() => initialCache || { dir: '', files: [], version: '' });
+  const [isLoading, setIsLoading] = useState(!initialCache || !initialCache.files || initialCache.files.length === 0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [fileFilter, setFileFilter] = useState('');
   const [selectedFileNames, setSelectedFileNames] = useState(new Set());
   const [renameModal, setRenameModal] = useState({ isOpen: false, oldName: '', newName: '' });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, files: [] });
-  const fetchLogs = async () => {
-    setIsLoading(true);
+
+  const fetchLogs = async (force = false) => {
+    if (force) {
+      setIsRefreshing(true);
+    } else if (!logsData.files || logsData.files.length === 0) {
+      setIsLoading(true);
+    }
+
     try {
-      const res = await fetch('/api/logs');
-      if (res.ok) setLogsData(await res.json());
-      else onNotify?.('Failed to fetch log files', 'error');
-    } catch { onNotify?.('Error connecting to backend', 'error'); }
-    finally { setIsLoading(false); }
+      const currentVersion = logsData.version || '';
+      const url = force 
+        ? '/api/logs?refresh=1' 
+        : `/api/logs?version=${encodeURIComponent(currentVersion)}`;
+        
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.notModified) {
+          if (force) onNotify?.('All log files are already up to date', 'info');
+        } else {
+          setLogsData(data);
+          saveLocalCachedLogs(data);
+          if (force) onNotify?.(`Refreshed ${data.files?.length || 0} log files`, 'success');
+        }
+      } else {
+        onNotify?.('Failed to fetch log files', 'error');
+      }
+    } catch {
+      onNotify?.('Error connecting to backend', 'error');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => {
+    fetchLogs(false);
+  }, []);
 
   const filteredFiles = useMemo(() => {
     if (!fileFilter.trim()) return logsData.files;
@@ -40,14 +90,33 @@ export function LogExplorer({ onNotify }) {
   const handleToggleFileActive = async (filename, currentActive) => {
     try {
       const res = await fetch('/api/logs/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename, active: !currentActive }) });
-      if (res.ok) setLogsData(prev => ({ ...prev, files: prev.files.map(f => f.name === filename ? { ...f, isActive: !currentActive } : f) }));
+      if (res.ok) {
+        setLogsData(prev => {
+          const next = {
+            ...prev,
+            files: prev.files.map(f => f.name === filename ? { ...f, isActive: !currentActive } : f)
+          };
+          saveLocalCachedLogs(next);
+          return next;
+        });
+      }
     } catch { onNotify?.('Toggle failed', 'error'); }
   };
 
   const handleBulkToggleActive = async (active) => {
     try {
       const res = await fetch('/api/logs/bulk-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: logsData.files.map(f => f.name), active }) });
-      if (res.ok) { setLogsData(prev => ({ ...prev, files: prev.files.map(f => ({ ...f, isActive: active })) })); onNotify?.(`All files ${active ? 'included' : 'excluded'}`, 'success'); }
+      if (res.ok) {
+        setLogsData(prev => {
+          const next = {
+            ...prev,
+            files: prev.files.map(f => ({ ...f, isActive: active }))
+          };
+          saveLocalCachedLogs(next);
+          return next;
+        });
+        onNotify?.(`All files ${active ? 'included' : 'excluded'}`, 'success');
+      }
     } catch { onNotify?.('Bulk toggle failed', 'error'); }
   };
 
@@ -65,18 +134,27 @@ export function LogExplorer({ onNotify }) {
     try {
       const res = await fetch('/api/logs/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldName: renameModal.oldName, newName: renameModal.newName.trim() }) });
       const data = await res.json();
-      if (res.ok) { onNotify?.(`Renamed to ${data.newName}`, 'success'); setRenameModal({ isOpen: false, oldName: '', newName: '' }); fetchLogs(); }
-      else onNotify?.(data.error || 'Rename failed', 'error');
+      if (res.ok) {
+        onNotify?.(`Renamed to ${data.newName}`, 'success');
+        setRenameModal({ isOpen: false, oldName: '', newName: '' });
+        fetchLogs(true);
+      } else {
+        onNotify?.(data.error || 'Rename failed', 'error');
+      }
     } catch { onNotify?.('Rename request failed', 'error'); }
   };
 
   const handleDeleteSubmit = async () => {
     try {
       const res = await fetch('/api/logs/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: deleteModal.files }) });
-      if (res.ok) { onNotify?.(`Deleted ${deleteModal.files.length} file(s)`, 'success'); setDeleteModal({ isOpen: false, files: [] }); setSelectedFileNames(new Set()); fetchLogs(); }
+      if (res.ok) {
+        onNotify?.(`Deleted ${deleteModal.files.length} file(s)`, 'success');
+        setDeleteModal({ isOpen: false, files: [] });
+        setSelectedFileNames(new Set());
+        fetchLogs(true);
+      }
     } catch { onNotify?.('Delete failed', 'error'); }
   };
-
 
   const totalLines = logsData.files.reduce((acc, f) => acc + (f.lineCount || 0), 0);
   const activeCount = logsData.files.filter(f => f.isActive).length;
@@ -98,11 +176,12 @@ export function LogExplorer({ onNotify }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={fetchLogs} disabled={isLoading}
+            onClick={() => fetchLogs(true)} disabled={isLoading || isRefreshing}
+            title="Scan for new log files on disk"
             className="h-8 px-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-zinc-300 hover:text-white flex items-center gap-1.5 text-[11px] transition-colors"
           >
-            <RefreshCw className={`w-3 h-3 text-cyan-400 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-3 h-3 text-cyan-400 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Checking...' : 'Refresh'}
           </button>
         </div>
       </div>
