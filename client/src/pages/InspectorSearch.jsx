@@ -10,6 +10,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
   const { items, streamStatus, isStreaming, isPaused, perFileCounts, metrics, error, startStream, pauseStream, resumeStream, stopEngine, clearStream } = streamState;
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchDomainOnly, setSearchDomainOnly] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
   const [confidenceFilter, setConfidenceFilter] = useState('ALL');
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -34,7 +35,10 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
     );
   }, [items, filterQuery, confidenceFilter]);
 
-  const handleStartSearch = () => { setSelectedIds(new Set()); startStream(searchQuery); };
+  const handleStartSearch = () => { 
+    setSelectedIds(new Set()); 
+    startStream(searchQuery, [], { domainOnly: searchDomainOnly }); 
+  };
 
   const handleToggleSelect = (id) => {
     setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -93,6 +97,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
         filteredCount={filteredItems.length} selectedCount={selectedIds.size} onSelectAll={handleSelectAll}
         onCopySelected={handleCopySelected} onExportTxt={handleExportTxt} onExportJson={handleExportJson}
         onClear={clearStream} mainInputRef={mainInputRef} filterInputRef={filterInputRef}
+        searchDomainOnly={searchDomainOnly} setSearchDomainOnly={setSearchDomainOnly}
       />
 
       <PerFileBreakdown 

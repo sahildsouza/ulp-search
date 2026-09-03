@@ -26,6 +26,7 @@ export async function searchRoutes(fastify, options) {
   // Server-Sent Events (SSE) Streaming Search
   fastify.get('/api/search', (req, reply) => {
     const query = (req.query.q || '').trim();
+    const domainOnly = req.query.domainOnly === 'true' || req.query.domainOnly === true;
     const specificFilesParam = req.query.files;
     
     // Resolve files to search
@@ -162,6 +163,18 @@ export async function searchRoutes(fastify, options) {
       // Parse line into structured combo object
       const parsed = parseComboLine(content, filename);
       if (!parsed) return;
+
+      // Domain-only filtering: ensure query matched the site domain or email domain
+      if (domainOnly && query.length > 0) {
+        const target = query.toLowerCase();
+        const itemDomain = (parsed.domain || '').toLowerCase();
+        const emailDomain = (parsed.userOrEmail && parsed.userOrEmail.includes('@'))
+          ? parsed.userOrEmail.split('@')[1]?.toLowerCase()
+          : '';
+        if (!itemDomain.includes(target) && !emailDomain.includes(target)) {
+          return;
+        }
+      }
 
       // Real-Time In-Memory Deduplication
       // Deduplicate by userOrEmail:pass (or raw line if unstructured)

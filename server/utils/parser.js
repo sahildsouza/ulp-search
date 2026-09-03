@@ -84,7 +84,25 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
       if ([':', '|', ';', ',', '\t', ' '].includes(delimiter)) {
         const pass = afterEmail.slice(1).trim();
         if (pass.length > 0 && RFC5322_EMAIL_REGEX.test(emailStr)) {
-          const domain = emailStr.split('@')[1]?.toLowerCase() || '';
+          let domain = emailStr.split('@')[1]?.toLowerCase() || '';
+
+          // If there is a domain/URL prefix before the email (e.g. example.com:email:pass or https://example.com/login:email:pass)
+          if (emailIndex > 0) {
+            const beforeEmail = raw.slice(0, emailIndex).trim();
+            const prefixClean = beforeEmail.replace(/[:|;,\t ]+$/, '').trim();
+            const protoMatch = prefixClean.match(/^[a-zA-Z0-9+.-]+:\/\/(?:www\.)?([^\/:]+)/i);
+            if (protoMatch) {
+              domain = protoMatch[1].toLowerCase();
+            } else if (isHostOrPackage(prefixClean)) {
+              domain = prefixClean.toLowerCase();
+            } else {
+              const hostInPrefix = prefixClean.split('/')[0].split(':')[0];
+              if (isHostOrPackage(hostInPrefix)) {
+                domain = hostInPrefix.toLowerCase();
+              }
+            }
+          }
+
           return {
             id: rowId,
             userOrEmail: emailStr,

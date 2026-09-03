@@ -15,7 +15,14 @@ const testCases = [
     expectedConf: 'EP',
     expectedUser: 'sarah.connor@cyberdyne.systems',
     expectedPass: 'IwillBeBack2026',
-    expectedDomain: 'cyberdyne.systems'
+    expectedDomain: 'auth.internal.corp'
+  },
+  {
+    line: 'example.com:john.doe@gmail.com:SecretPass123!',
+    expectedConf: 'EP',
+    expectedUser: 'john.doe@gmail.com',
+    expectedPass: 'SecretPass123!',
+    expectedDomain: 'example.com'
   },
   {
     line: 'john_wick|continental999',

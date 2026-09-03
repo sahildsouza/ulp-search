@@ -112,7 +112,7 @@ export function useSSEStream() {
   }, []);
 
   // Start Stream
-  const startStream = useCallback(async (query = '', specificFiles = []) => {
+  const startStream = useCallback(async (query = '', specificFiles = [], options = {}) => {
     clearStream();
 
     const controller = new AbortController();
@@ -124,6 +124,9 @@ export function useSSEStream() {
     if (query) params.set('q', query);
     if (specificFiles && specificFiles.length > 0) {
       params.set('files', specificFiles.join(','));
+    }
+    if (options.domainOnly) {
+      params.set('domainOnly', 'true');
     }
 
     startTimeRef.current = Date.now();
