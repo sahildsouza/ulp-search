@@ -19,6 +19,19 @@ export function isMobileNumber(str) {
 }
 
 /**
+ * Checks if a string is a domain/host, IP, or Android app package name
+ * e.g. com.cpplusworld.ezykamp, cpplusworld.ezykamp.com, netflix.com, 192.168.1.1
+ */
+export function isHostOrPackage(str) {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.trim().toLowerCase();
+  const withoutProto = s.replace(/^[a-z0-9+.-]+:\/\//i, '');
+  if (withoutProto.includes(' ') || withoutProto.includes('@')) return false;
+  const hostOnly = withoutProto.replace(/:\d{1,5}$/, '');
+  return /^(?:[a-z0-9-_]+\.)+[a-z0-9-_]{2,}$/i.test(hostOnly) || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostOnly);
+}
+
+/**
  * Fast deterministic hash for unique row tracking and copy memory
  */
 export function generateRowId(raw, file = '') {
@@ -88,12 +101,12 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
     }
   }
 
-  // Strategy 2: URL & Delimiter Matching for Non-Email (User:Pass, Mobile:Pass)
+  // Strategy 2: URL, Package & Delimiter Matching for Non-Email (Mobile:Pass, User:Pass)
   let cleanLine = raw;
   let urlPrefixDomain = '';
 
-  // Strip protocol URLs: https://..., http://..., android://...
-  const protocolMatch = cleanLine.match(/^[a-zA-Z0-9+.-]+:\/\/[^\/:\s]+(?::\d+)?(?:\/[^:|\t;, ]*)?[:|;,\t ]/i);
+  // Strip protocol URLs: https://..., http://..., android://... (limiting port to 5 digits so 10-digit phones aren't stripped)
+  const protocolMatch = cleanLine.match(/^[a-zA-Z0-9+.-]+:\/\/[^\/:\s]+(?::\d{1,5})?(?:\/[^:|\t;, ]*)?[:|;,\t ]/i);
   if (protocolMatch) {
     const matchedUrl = protocolMatch[0];
     const hostMatch = matchedUrl.match(/:\/\/(?:www\.)?([^\/:]+)/i);
@@ -110,12 +123,13 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
         let passCandidate = '';
         let domain = urlPrefixDomain;
 
-        // Check if parts[0] is a domain/host or IP without protocol (e.g. site.com:user:pass)
-        const isHost = /(?:^[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d+)?$/.test(parts[0]) || 
-                      /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?$/.test(parts[0]);
-
-        if (isHost && parts.length >= 3) {
-          domain = parts[0].split(':')[0].toLowerCase();
+        // Check 3+ part lines like host:port:user:pass or package:mobile:pass or host:mobile:pass
+        if (parts.length >= 4 && isHostOrPackage(parts[0]) && /^\d{1,5}$/.test(parts[1])) {
+          domain = parts[0].toLowerCase();
+          userCandidate = parts[2].trim();
+          passCandidate = parts.slice(3).join(delim).trim();
+        } else if (parts.length >= 3 && (isHostOrPackage(parts[0]) || isMobileNumber(parts[1]) || RFC5322_EMAIL_REGEX.test(parts[1]))) {
+          domain = parts[0].toLowerCase();
           userCandidate = parts[1].trim();
           passCandidate = parts.slice(2).join(delim).trim();
         } else {

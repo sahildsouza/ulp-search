@@ -54,6 +54,27 @@ const testCases = [
     expectedPass: 'simplepass'
   },
   {
+    line: 'com.cpplusworld.ezykamp:7737193309:Devkisu2001',
+    expectedConf: 'MP',
+    expectedUser: '7737193309',
+    expectedPass: 'Devkisu2001',
+    expectedDomain: 'com.cpplusworld.ezykamp'
+  },
+  {
+    line: 'cpplusworld.ezykamp.com:7905181267:Raj@774847',
+    expectedConf: 'MP',
+    expectedUser: '7905181267',
+    expectedPass: 'Raj@774847',
+    expectedDomain: 'cpplusworld.ezykamp.com'
+  },
+  {
+    line: 'https://cpplusworld.ezykamp.com:7905181267:Raj@774847',
+    expectedConf: 'MP',
+    expectedUser: '7905181267',
+    expectedPass: 'Raj@774847',
+    expectedDomain: 'cpplusworld.ezykamp.com'
+  },
+  {
     line: 'malformed_garbage_string_with_no_delimiter',
     expectedConf: 'UK',
     expectedPass: ''
