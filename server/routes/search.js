@@ -3,6 +3,7 @@ import path from 'path';
 import readline from 'readline';
 import { parseComboLine } from '../utils/parser.js';
 import { getActiveLogPaths, getLogsDirectory } from '../services/logManager.js';
+import { getConfiguredThreads } from '../services/telemetry.js';
 
 // Global reference to active search process for telemetry & stop actions
 export let activeSearchProcess = null;
@@ -72,14 +73,14 @@ export async function searchRoutes(fastify, options) {
     // -i: case-insensitive
     // --no-line-number: suppress line numbers
     // --mmap: memory mapped IO for multi-gigabyte log speed
-    // -j 8: 8 hardware threads for Snapdragon 8 Elite
-    // -H: with-filename to allow per-file match attribution
+    // Dynamically sized thread count matching host CPU topology
+    const threadCount = getConfiguredThreads();
     const rgPattern = query.length > 0 ? query : '.';
     const rgArgs = [
       '-i',
       '--no-line-number',
       '--mmap',
-      '-j', '8',
+      '-j', String(threadCount),
       '-H',
       '--',
       rgPattern,

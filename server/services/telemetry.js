@@ -5,6 +5,17 @@ import { execSync } from 'child_process';
 
 let previousCpuTimes = null;
 let cachedSocInfo = null;
+let cachedOsInfo = null;
+let wmiThermalTested = false;
+let wmiThermalSupported = false;
+
+/**
+ * Dynamically computes optimal Ripgrep worker threads based on host cores
+ */
+export function getConfiguredThreads() {
+  const cores = os.cpus().length || 8;
+  return Math.max(2, Math.min(16, cores));
+}
 
 const SOC_DICTIONARY = [
   // Snapdragon 8 Series
@@ -18,6 +29,9 @@ const SOC_DICTIONARY = [
   { match: /(sm8250|kona|snapdragon 865|snapdragon 870)/i, name: 'Qualcomm Snapdragon 865/870', arch: 'ARMv8.2-A' },
   { match: /(sm8150|msmnile|snapdragon 855)/i, name: 'Qualcomm Snapdragon 855', arch: 'ARMv8.2-A' },
   { match: /(sdm845|snapdragon 845)/i, name: 'Qualcomm Snapdragon 845', arch: 'ARMv8-A' },
+
+  // Snapdragon X Series (PC / Laptops)
+  { match: /(x1e-80|x1e-84|x1e-78|x1p-64|snapdragon x elite|snapdragon x plus)/i, name: 'Qualcomm Snapdragon X Elite/Plus', arch: 'ARMv8.7-A (Oryon)' },
 
   // Snapdragon 7 Series
   { match: /(sm7675|snapdragon 7\+ gen 3)/i, name: 'Qualcomm Snapdragon 7+ Gen 3', arch: 'ARMv9.2-A' },
@@ -43,11 +57,68 @@ const SOC_DICTIONARY = [
   // Samsung Exynos
   { match: /(s5e9945|exynos 2400)/i, name: 'Samsung Exynos 2400', arch: 'ARMv9.2-A' },
   { match: /(s5e9925|exynos 2200)/i, name: 'Samsung Exynos 2200', arch: 'ARMv9-A' },
-  { match: /(s5e9840|exynos 2100)/i, name: 'Samsung Exynos 2100', arch: 'ARMv8-A' }
+  { match: /(s5e9840|exynos 2100)/i, name: 'Samsung Exynos 2100', arch: 'ARMv8-A' },
+
+  // Raspberry Pi / ARM SBCs
+  { match: /raspberry pi 5/i, name: 'Broadcom BCM2712 (Raspberry Pi 5)', arch: 'ARMv8.2-A' },
+  { match: /raspberry pi 4/i, name: 'Broadcom BCM2711 (Raspberry Pi 4)', arch: 'ARMv8-A' }
 ];
 
 /**
- * Deep auto-detection for Android / Termux / Linux SoC
+ * Accurately detects OS, Distro, Kernel, Architecture
+ */
+export function getOsInfo() {
+  if (cachedOsInfo) return cachedOsInfo;
+
+  const platform = process.platform;
+  let distro = '';
+
+  if (platform === 'linux') {
+    const isTermux = !!process.env.TERMUX_VERSION || 
+                     !!process.env.PREFIX?.includes('com.termux') || 
+                     fs.existsSync('/data/data/com.termux');
+
+    if (isTermux) {
+      let androidVer = '';
+      try {
+        const cmd = fs.existsSync('/system/bin/getprop') ? '/system/bin/getprop ro.build.version.release' : 'getprop ro.build.version.release';
+        androidVer = execSync(cmd, { encoding: 'utf-8', timeout: 300, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      } catch {}
+      distro = `Android ${androidVer ? androidVer + ' ' : ''}(Termux)`.trim();
+    } else {
+      try {
+        if (fs.existsSync('/etc/os-release')) {
+          const content = fs.readFileSync('/etc/os-release', 'utf-8');
+          const m = content.match(/PRETTY_NAME="?([^"\n]+)"?/);
+          if (m) distro = m[1];
+        }
+      } catch {}
+      if (!distro) distro = 'Linux (' + os.release() + ')';
+    }
+  } else if (platform === 'win32') {
+    const rel = os.release();
+    const build = parseInt(rel.split('.')[2] || '0', 10);
+    const winName = build >= 22000 ? 'Windows 11' : (build >= 10240 ? 'Windows 10' : `Windows (${rel})`);
+    distro = `${winName} (Build ${build})`;
+  } else if (platform === 'darwin') {
+    distro = 'macOS ' + os.release();
+  } else {
+    distro = os.type() + ' ' + os.release();
+  }
+
+  cachedOsInfo = {
+    platform,
+    distro,
+    arch: os.arch() === 'x64' ? 'x86_64' : os.arch(),
+    hostname: os.hostname(),
+    kernel: os.release(),
+    nodeVersion: process.version
+  };
+  return cachedOsInfo;
+}
+
+/**
+ * Universal auto-detection for SoC / Processor across Windows, Ubuntu, Linux, Android/Termux, macOS
  */
 export function detectSoC() {
   if (cachedSocInfo) return cachedSocInfo;
@@ -77,13 +148,13 @@ export function detectSoC() {
     for (const prop of propsToQuery) {
       try {
         const cmd = fs.existsSync('/system/bin/getprop') ? `/system/bin/getprop ${prop}` : `getprop ${prop}`;
-        const val = execSync(cmd, { encoding: 'utf-8', timeout: 500, stdio: ['pipe', 'pipe', 'ignore'] })?.trim();
+        const val = execSync(cmd, { encoding: 'utf-8', timeout: 400, stdio: ['pipe', 'pipe', 'ignore'] })?.trim();
         if (val) rawCandidates.push(val);
       } catch {}
     }
   }
 
-  // 2. /sys/devices/soc0 check (Qualcomm Linux Kernel socinfo)
+  // 2. /sys/devices/soc0 (Qualcomm / Linux SoC sysfs)
   try {
     const socDir = '/sys/devices/soc0';
     if (fs.existsSync(socDir)) {
@@ -97,7 +168,18 @@ export function detectSoC() {
     }
   } catch {}
 
-  // 3. Android build.prop files fallback
+  // 3. Linux device-tree model (Raspberry Pi, Apple Silicon Linux, ARM SBCs)
+  const dtPaths = ['/proc/device-tree/model', '/sys/firmware/devicetree/base/model'];
+  for (const dt of dtPaths) {
+    try {
+      if (fs.existsSync(dt)) {
+        const val = fs.readFileSync(dt, 'utf-8').replace(/\0/g, '').trim();
+        if (val) rawCandidates.push(val);
+      }
+    } catch {}
+  }
+
+  // 4. Android build.prop fallback
   const propFiles = ['/vendor/build.prop', '/system/build.prop', '/product/build.prop', '/odm/etc/build.prop'];
   for (const pf of propFiles) {
     try {
@@ -113,9 +195,7 @@ export function detectSoC() {
     } catch {}
   }
 
-  // 4. /proc/cpuinfo parse
-  let cpuinfoHardware = '';
-  let cpuinfoModel = '';
+  // 5. /proc/cpuinfo parse (Linux / Ubuntu / Termux)
   let hasQualcommImplementer = false;
   try {
     if (fs.existsSync('/proc/cpuinfo')) {
@@ -125,14 +205,8 @@ export function detectSoC() {
         if (parts.length >= 2) {
           const k = parts[0].trim().toLowerCase();
           const v = parts.slice(1).join(':').trim();
-          if (k === 'hardware') {
-            cpuinfoHardware = v;
-            rawCandidates.push(v);
-          }
-          if (k === 'model name' && v) {
-            cpuinfoModel = v;
-            rawCandidates.push(v);
-          }
+          if (k === 'hardware') rawCandidates.push(v);
+          if (k === 'model name' && v) rawCandidates.push(v);
           if (k === 'cpu implementer' && v.toLowerCase() === '0x51') {
             hasQualcommImplementer = true;
           }
@@ -141,8 +215,16 @@ export function detectSoC() {
     }
   } catch {}
 
-  // 5. Check desktop os.cpus()
-  const osModel = cpus[0]?.model?.trim();
+  // 6. macOS sysctl brand string
+  if (process.platform === 'darwin') {
+    try {
+      const macBrand = execSync('sysctl -n machdep.cpu.brand_string', { encoding: 'utf-8', timeout: 400, stdio: ['pipe', 'pipe', 'ignore'] })?.trim();
+      if (macBrand) rawCandidates.push(macBrand);
+    } catch {}
+  }
+
+  // 7. Desktop os.cpus() (Standard on Windows, macOS, x86_64 Linux)
+  const osModel = cpus[0]?.model?.trim().replace(/\s+/g, ' ');
   if (osModel && !/^armv\d+/i.test(osModel) && !/^aarch64/i.test(osModel) && osModel.toLowerCase() !== 'unknown') {
     rawCandidates.push(osModel);
   }
@@ -153,7 +235,7 @@ export function detectSoC() {
     if (item.match.test(rawJoined)) {
       cachedSocInfo = {
         name: item.name,
-        architecture: item.arch || (os.arch() === 'arm64' ? 'ARMv8/ARMv9' : os.arch()),
+        architecture: item.arch || (os.arch() === 'arm64' ? 'ARMv8/ARMv9' : 'x86_64'),
         totalCores,
         hardwareThreads: totalCores,
         detectedFrom: rawCandidates[0] || 'Hardware Sysfs'
@@ -162,8 +244,8 @@ export function detectSoC() {
     }
   }
 
-  // If Qualcomm implementer 0x51 detected or Hardware contains Qualcomm
-  if (hasQualcommImplementer || /qualcomm|qcom/i.test(rawJoined)) {
+  // If Qualcomm implementer 0x51 detected or Hardware contains Qualcomm on Android
+  if (hasQualcommImplementer || (/qualcomm|qcom/i.test(rawJoined) && isAndroid)) {
     cachedSocInfo = {
       name: 'Qualcomm Snapdragon 8 Elite',
       architecture: 'ARMv8.7-A (Oryon)',
@@ -174,15 +256,15 @@ export function detectSoC() {
     return cachedSocInfo;
   }
 
-  // If any candidate looks like a meaningful name
-  const bestCandidate = rawCandidates.find(c => c.length > 2 && !/^unknown/i.test(c));
+  // If any candidate looks like a meaningful CPU name (Intel, AMD, Apple, etc.)
+  const bestCandidate = rawCandidates.find(c => c.length > 3 && !/^unknown/i.test(c) && !/^armv/i.test(c) && !/^aarch/i.test(c));
   if (bestCandidate) {
     cachedSocInfo = {
       name: bestCandidate,
-      architecture: os.arch(),
+      architecture: os.arch() === 'x64' ? 'x86_64' : os.arch(),
       totalCores,
       hardwareThreads: totalCores,
-      detectedFrom: 'System Properties'
+      detectedFrom: 'System Hardware Interface'
     };
     return cachedSocInfo;
   }
@@ -202,7 +284,7 @@ export function detectSoC() {
   // Desktop / Host fallback
   cachedSocInfo = {
     name: osModel || (os.arch().toUpperCase() + ' Host Processor'),
-    architecture: os.arch(),
+    architecture: os.arch() === 'x64' ? 'x86_64' : os.arch(),
     totalCores,
     hardwareThreads: totalCores,
     detectedFrom: 'OS Host'
@@ -252,7 +334,7 @@ function readProcMeminfo() {
 }
 
 /**
- * Reads thermal sensors from /sys/class/thermal/
+ * Reads thermal sensors from /sys/class/thermal/ (Linux / Android)
  */
 function readThermalZones() {
   const thermalDir = '/sys/class/thermal';
@@ -270,21 +352,19 @@ function readThermalZones() {
           if (fs.existsSync(typeFile) && fs.existsSync(tempFile)) {
             const type = fs.readFileSync(typeFile, 'utf-8').trim();
             const rawTemp = parseInt(fs.readFileSync(tempFile, 'utf-8').trim(), 10);
-            const tempC = rawTemp > 1000 ? Math.round(rawTemp / 1000) : rawTemp;
-
-            sensors.push({ zone: entry, type, tempC });
+            if (!isNaN(rawTemp) && rawTemp > 0 && rawTemp < 150000) {
+              const tempC = rawTemp > 1000 ? Math.round(rawTemp / 1000) : rawTemp;
+              sensors.push({ zone: entry, type, tempC });
+            }
           }
         }
       }
     }
-  } catch (err) {
-    // Directory might not be readable
-  }
+  } catch (err) {}
 
   if (sensors.length > 0) {
-    // Look for CPU/SoC specific Snapdragon sensors
     const cpuSensors = sensors.filter(s => 
-      /cpu|soc|battery|pmic|oryon|qcom/i.test(s.type)
+      /cpu|soc|battery|pmic|oryon|qcom|core|acpitz|x86_pkg/i.test(s.type)
     );
     const primary = cpuSensors.length > 0 ? cpuSensors : sensors;
     const maxTemp = Math.max(...primary.map(s => s.tempC));
@@ -302,7 +382,63 @@ function readThermalZones() {
 }
 
 /**
- * Reads battery temp if thermal zones are restricted on Android
+ * Reads hwmon sensors (standard on Ubuntu, Debian, Fedora, Arch Linux PCs & Servers)
+ */
+function readHwmon() {
+  const hwmonDir = '/sys/class/hwmon';
+  const sensors = [];
+
+  try {
+    if (fs.existsSync(hwmonDir)) {
+      const entries = fs.readdirSync(hwmonDir);
+      for (const entry of entries) {
+        const hPath = path.join(hwmonDir, entry);
+        let chipName = 'hwmon';
+        try {
+          const nameFile = path.join(hPath, 'name');
+          if (fs.existsSync(nameFile)) {
+            chipName = fs.readFileSync(nameFile, 'utf-8').trim();
+          }
+        } catch {}
+
+        const files = fs.readdirSync(hPath);
+        for (const f of files) {
+          if (/^temp\d+_input$/.test(f)) {
+            try {
+              const labelFile = path.join(hPath, f.replace('_input', '_label'));
+              let label = chipName;
+              if (fs.existsSync(labelFile)) {
+                label = `${chipName} (${fs.readFileSync(labelFile, 'utf-8').trim()})`;
+              }
+              const raw = parseInt(fs.readFileSync(path.join(hPath, f), 'utf-8').trim(), 10);
+              if (!isNaN(raw) && raw > 0 && raw < 150000) {
+                const tempC = raw > 1000 ? Math.round(raw / 1000) : raw;
+                sensors.push({ zone: entry, type: label, tempC });
+              }
+            } catch {}
+          }
+        }
+      }
+    }
+  } catch {}
+
+  if (sensors.length > 0) {
+    const cpuSensors = sensors.filter(s => /core|cpu|tctl|die|soc|package/i.test(s.type));
+    const primary = cpuSensors.length > 0 ? cpuSensors : sensors;
+    const maxTemp = Math.max(...primary.map(s => s.tempC));
+    const avgTemp = Math.round(primary.reduce((acc, s) => acc + s.tempC, 0) / primary.length);
+    return {
+      currentTempC: maxTemp,
+      averageTempC: avgTemp,
+      sensors: sensors.slice(0, 8),
+      source: '/sys/class/hwmon'
+    };
+  }
+  return null;
+}
+
+/**
+ * Reads battery temp if thermal zones are restricted on Android / Termux
  */
 function readBatteryTemp() {
   const batteryPaths = [
@@ -318,13 +454,41 @@ function readBatteryTemp() {
           return {
             currentTempC: tempC,
             averageTempC: tempC,
-            sensors: [{ zone: 'battery', type: 'Battery / SoC Thermal', tempC }],
+            sensors: [{ zone: 'battery', type: 'Battery / Device Thermal', tempC }],
             source: bp
           };
         }
       }
     } catch {}
   }
+  return null;
+}
+
+/**
+ * Reads ACPI Thermal Zone on Windows if available (cached after first run)
+ */
+function readWindowsTemp() {
+  if (process.platform !== 'win32') return null;
+  if (wmiThermalTested && !wmiThermalSupported) return null;
+
+  try {
+    wmiThermalTested = true;
+    const cmd = 'powershell -NoProfile -Command "(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue).CurrentTemperature"';
+    const out = execSync(cmd, { encoding: 'utf-8', timeout: 500, stdio: ['pipe', 'pipe', 'ignore'] })?.trim();
+    const raw = parseInt(out, 10);
+    if (!isNaN(raw) && raw > 2732 && raw < 4000) {
+      wmiThermalSupported = true;
+      const tempC = Math.round((raw - 2732) / 10);
+      return {
+        currentTempC: tempC,
+        averageTempC: tempC,
+        sensors: [{ zone: 'ACPI', type: 'ACPI Motherboard Thermal', tempC }],
+        source: 'WMI MSAcpi_ThermalZoneTemperature'
+      };
+    }
+  } catch {}
+
+  wmiThermalSupported = false;
   return null;
 }
 
@@ -369,13 +533,19 @@ function calculateCpuUsage() {
 }
 
 /**
- * Consolidated Telemetry Collector
+ * Consolidated Telemetry Collector (Universal for Windows, Linux, Ubuntu, Termux, macOS)
  */
 export function getSystemTelemetry(activeSearchProcess = null) {
-  // 1. SoC Info
+  // 1. Host OS & Platform Info
+  const osInfo = getOsInfo();
+
+  // 2. SoC / Processor Info
   const soc = detectSoC();
 
-  // 2. RAM Telemetry
+  // 3. Worker Threads
+  const configuredThreads = getConfiguredThreads();
+
+  // 4. RAM Telemetry
   let mem = readProcMeminfo();
   if (!mem) {
     const total = os.totalmem();
@@ -389,32 +559,34 @@ export function getSystemTelemetry(activeSearchProcess = null) {
       usagePercent: parseFloat(((used / total) * 100).toFixed(1)),
       buffers: 0,
       cached: 0,
-      source: 'os.memory (host fallback)'
+      source: 'os.memory (' + (process.platform === 'win32' ? 'Windows' : osInfo.platform) + ')'
     };
   }
 
-  // 3. CPU / Thermal Telemetry
+  // 5. CPU / Thermal Telemetry
   let thermal = readThermalZones();
-  if (!thermal) {
-    thermal = readBatteryTemp();
-  }
+  if (!thermal) thermal = readHwmon();
+  if (!thermal) thermal = readBatteryTemp();
+  if (!thermal) thermal = readWindowsTemp();
   if (!thermal) {
     thermal = {
-      currentTempC: 0,
-      averageTempC: 0,
+      currentTempC: null,
+      averageTempC: null,
       sensors: [],
-      source: 'Unavailable'
+      status: 'NORMAL',
+      source: 'Sensor not present / VM'
     };
   }
 
-  // 4. CPU Core Utilization
+  // 6. CPU Core Utilization
   const cpu = calculateCpuUsage();
 
-  // 5. Ripgrep Threads & Engine Status
+  // 7. Ripgrep Threads & Engine Status
   const isRgActive = !!activeSearchProcess && !activeSearchProcess.killed;
-  const rgThreads = isRgActive ? 8 : 0;
+  const rgThreads = isRgActive ? configuredThreads : 0;
 
   return {
+    os: osInfo,
     soc: {
       name: soc.name,
       architecture: soc.architecture,
@@ -434,7 +606,8 @@ export function getSystemTelemetry(activeSearchProcess = null) {
       currentTempC: thermal.currentTempC,
       averageTempC: thermal.averageTempC,
       sensors: thermal.sensors,
-      status: thermal.currentTempC > 70 ? 'CRITICAL' : (thermal.currentTempC > 55 ? 'WARM' : 'OPTIMAL')
+      status: thermal.currentTempC ? (thermal.currentTempC > 75 ? 'CRITICAL' : (thermal.currentTempC > 55 ? 'WARM' : 'OPTIMAL')) : 'NORMAL',
+      source: thermal.source
     },
     cpu: {
       cores: cpu.cores,
@@ -443,7 +616,7 @@ export function getSystemTelemetry(activeSearchProcess = null) {
     },
     engine: {
       activeRgSearch: isRgActive,
-      configuredThreads: 8,
+      configuredThreads: configuredThreads,
       activeThreads: rgThreads,
       pid: activeSearchProcess?.pid || null
     },

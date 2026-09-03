@@ -6,13 +6,17 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
   const thermal = stats?.thermal || { currentTempC: 42, status: 'OPTIMAL' };
   const cpu = stats?.cpu || { usagePercent: 0 };
 
+  const hasTemp = typeof thermal.currentTempC === 'number' && !isNaN(thermal.currentTempC);
   const tempColor =
-    thermal.currentTempC >= 70 ? 'text-rose-400 bg-rose-500/10 border-rose-500/25'
+    !hasTemp ? 'text-zinc-400 bg-white/[0.04] border-white/[0.08]'
+    : thermal.currentTempC >= 70 ? 'text-rose-400 bg-rose-500/10 border-rose-500/25'
     : thermal.currentTempC >= 55 ? 'text-amber-400 bg-amber-500/10 border-amber-500/25'
     : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25';
 
   const ramColor =
     ram.usagePercent > 85 ? 'bg-rose-500' : ram.usagePercent > 70 ? 'bg-amber-500' : 'bg-cyan-500';
+
+  const threadCount = stats?.engine?.configuredThreads || 8;
 
   const metrics = [
     {
@@ -30,7 +34,7 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
       label: 'TEMP',
       value: (
         <span className={`px-1.5 py-px rounded border text-[10px] font-semibold leading-tight ${tempColor}`}>
-          {thermal.currentTempC}°C
+          {hasTemp ? `${thermal.currentTempC}°C` : (thermal.status || 'NORMAL')}
         </span>
       )
     },
@@ -46,7 +50,7 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
         <span className={`px-1.5 py-px rounded border text-[10px] font-bold leading-tight ${
           isStreaming ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 animate-pulse' : 'bg-zinc-900 text-zinc-500 border-zinc-800'
         }`}>
-          {isStreaming ? '-j 8' : 'IDLE'}
+          {isStreaming ? `-j ${threadCount}` : 'IDLE'}
         </span>
       )
     }
@@ -59,6 +63,7 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
         {/* Chipset badge */}
         <button
           onClick={onOpenDrawer}
+          title={`${stats?.soc?.name || 'Local System'} · ${stats?.os?.distro || ''}`}
           className="flex items-center gap-1.5 px-2 py-[3px] rounded-md bg-cyan-500/[0.08] border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/[0.12] transition-colors flex-shrink-0 max-w-[160px] sm:max-w-[260px]"
         >
           <Zap className="w-3 h-3 text-cyan-400 flex-shrink-0" />
