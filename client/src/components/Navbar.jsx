@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, FolderSearch, BarChart3, Cpu, Radio } from 'lucide-react';
+import { Search, FolderSearch, BarChart3, Radio } from 'lucide-react';
 import { formatNumber, formatSpeed } from '../utils/formatters';
 
 const TAB_ITEMS = [
@@ -35,7 +35,7 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
               ULP<span className="text-cyan-400">.STREAM</span>
             </span>
             <p className="text-[10px] text-zinc-500 font-mono-code leading-tight hidden md:block mt-0.5">
-              Snapdragon 8 Elite · Termux SSE
+              {systemStats?.os?.distro ? `${systemStats.os.distro} · High-Speed SSE` : 'High-Speed SSE Stream'}
             </p>
           </div>
         </div>
@@ -65,39 +65,24 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
           })}
         </nav>
 
-        {/* ── Right: Stream telemetry + HW button ── */}
+        {/* ── Right: Stream throughput / status (Clean, no redundant counts/temps) ── */}
         <div className="flex items-center gap-2 flex-shrink-0">
-
-          {/* Desktop stream metrics */}
-          <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono-code text-[11px]">
+          <div className="flex items-center gap-2 px-2.5 py-1 sm:py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono-code text-[11px]">
             <span className={`flex items-center gap-1.5 font-semibold ${isActive ? 'text-cyan-300' : isPaused ? 'text-amber-300' : 'text-zinc-500'}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`} />
               {statusLabel}
             </span>
-            <span className="w-px h-3 bg-white/[0.08]" />
-            <span className="text-zinc-500">{formatSpeed(metrics.bytesPerSec)}</span>
-            <span className="w-px h-3 bg-white/[0.08]" />
-            <span className="text-zinc-500">{formatNumber(metrics.matchesPerSec)}<span className="text-zinc-600">/s</span></span>
-            <span className="w-px h-3 bg-white/[0.08]" />
-            <span className="text-white font-semibold">{formatNumber(metrics.totalMatches)}</span>
+            {(isActive || isPaused) && (
+              <>
+                <span className="w-px h-3 bg-white/[0.08]" />
+                <span className="text-zinc-400">{formatSpeed(metrics.bytesPerSec)}</span>
+                <span className="w-px h-3 bg-white/[0.08] hidden sm:block" />
+                <span className="text-zinc-500 hidden sm:inline">
+                  {formatNumber(metrics.matchesPerSec)}<span className="text-zinc-600">/s</span>
+                </span>
+              </>
+            )}
           </div>
-
-          {/* Mobile matches pill */}
-          <div className="flex lg:hidden items-center gap-1.5 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] font-mono-code text-[11px]">
-            <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`} />
-            <span className="text-white font-semibold">{formatNumber(metrics.totalMatches)}</span>
-          </div>
-
-          {/* HW button */}
-          <button
-            onClick={onOpenStatsDrawer}
-            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-[6px] rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] hover:border-cyan-500/30 font-mono-code text-[11px] transition-all group"
-          >
-            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-zinc-300">{systemStats?.thermal?.currentTempC ?? 42}°C</span>
-            <span className="hidden sm:inline text-zinc-600">·</span>
-            <span className="hidden sm:inline text-zinc-400">{systemStats?.ram?.usagePercent ?? 0}%</span>
-          </button>
         </div>
       </div>
     </header>
