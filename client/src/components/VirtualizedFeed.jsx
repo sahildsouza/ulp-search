@@ -4,7 +4,7 @@ import { ResultCard } from './ResultCard';
 import { Database, Loader2 } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
-export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleSelect, isCopied, onCopy, isStreaming, isRawMode = false }) {
+export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleSelect, isCopied, onCopy, isStreaming, isRawMode = false, copyMemory }) {
   const parentRef = useRef(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
 
@@ -88,6 +88,7 @@ export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleS
                   isCopied={isCopied}
                   onCopy={onCopy}
                   isRawMode={isRawMode}
+                  copyMemory={copyMemory}
                 />
               </div>
             );

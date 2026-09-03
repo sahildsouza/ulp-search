@@ -12,12 +12,15 @@ const CONFIDENCE_MAP = {
   RED: { cls: 'badge-red', icon: HelpCircle, label: 'UNKNOWN', shortLabel: 'UK' },
 };
 
-export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy, isRawMode }) {
+export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy, isRawMode, copyMemory }) {
   const [justCopied, setJustCopied] = useState(false);
   const [copiedRaw, setCopiedRaw] = useState(false);
-  const [copiedUser, setCopiedUser] = useState(false);
-  const [copiedPass, setCopiedPass] = useState(false);
-  const alreadyCopied = isCopied(item.id);
+  const [justCopiedUser, setJustCopiedUser] = useState(false);
+  const [justCopiedPass, setJustCopiedPass] = useState(false);
+
+  const alreadyCopied = (typeof isCopied === 'function' && isCopied(item.id)) || (copyMemory?.isCopied?.(item.id));
+  const isUserCopied = (copyMemory?.isUserCopied ? copyMemory.isUserCopied(item.id) : alreadyCopied) || justCopiedUser;
+  const isPassCopied = (copyMemory?.isPassCopied ? copyMemory.isPassCopied(item.id) : alreadyCopied) || justCopiedPass;
 
   const copyText = async (text) => {
     if (!text) return false;
@@ -41,36 +44,59 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
   const handleCopyUser = async (e) => {
     e.stopPropagation();
     if (!item.userOrEmail) return;
-    const ok = await copyText(item.userOrEmail);
+    let ok = false;
+    if (copyMemory?.copyUser) {
+      ok = await copyMemory.copyUser(item);
+    } else {
+      ok = await copyText(item.userOrEmail);
+    }
     if (ok) {
-      setCopiedUser(true);
-      setTimeout(() => setCopiedUser(false), 1400);
+      setJustCopiedUser(true);
+      setTimeout(() => setJustCopiedUser(false), 1400);
     }
   };
 
   const handleCopyPass = async (e) => {
     e.stopPropagation();
     if (!item.pass) return;
-    const ok = await copyText(item.pass);
+    let ok = false;
+    if (copyMemory?.copyPass) {
+      ok = await copyMemory.copyPass(item);
+    } else {
+      ok = await copyText(item.pass);
+    }
     if (ok) {
-      setCopiedPass(true);
-      setTimeout(() => setCopiedPass(false), 1400);
+      setJustCopiedPass(true);
+      setTimeout(() => setJustCopiedPass(false), 1400);
     }
   };
 
   const handleCopy = async (e) => {
     e.stopPropagation();
-    const ok = await onCopy(item);
-    if (ok) { setJustCopied(true); setTimeout(() => setJustCopied(false), 1500); }
+    let ok = false;
+    if (copyMemory?.copyRecord) {
+      ok = await copyMemory.copyRecord(item);
+    } else if (onCopy) {
+      ok = await onCopy(item);
+    }
+    if (ok) { 
+      setJustCopied(true); 
+      setTimeout(() => setJustCopied(false), 1500); 
+    }
   };
 
   const handleCopyRaw = async (e) => {
     e.stopPropagation();
-    try {
-      if (navigator.clipboard) await navigator.clipboard.writeText(item.raw);
+    let ok = false;
+    if (copyMemory?.copyRaw) {
+      ok = await copyMemory.copyRaw(item);
+    } else {
+      ok = await copyText(item.raw);
+    }
+    if (ok) {
       setCopiedRaw(true);
       setTimeout(() => setCopiedRaw(false), 1500);
-    } catch {}
+    }
   };
 
   const toggleRaw = (e) => {
@@ -80,6 +106,7 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
 
   // Full raw unparsed line view
   if (isRawMode) {
+    const rawCopied = copiedRaw || alreadyCopied;
     return (
       <div className={`group rounded-lg border transition-colors duration-100 ${
         isSelected
@@ -118,13 +145,13 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
               onClick={handleCopyRaw}
               title="Copy full raw line"
               className={`h-6 px-1.5 rounded border flex items-center gap-0.5 text-[9px] font-mono-code font-semibold transition-all ${
-                copiedRaw
+                rawCopied
                   ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                   : 'bg-white/[0.03] text-zinc-400 border-white/[0.06] hover:text-white hover:border-cyan-500/30'
               }`}
             >
-              {copiedRaw ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
-              <span className="hidden xs:inline">{copiedRaw ? 'COPIED' : 'COPY'}</span>
+              {rawCopied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+              <span className="hidden xs:inline">{rawCopied ? 'COPIED' : 'COPY'}</span>
             </button>
           </div>
         </div>
@@ -161,20 +188,24 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
           <span>{conf.shortLabel}</span>
         </span>
 
-        {/* Credentials inline */}
+        {/* Credentials inline with memory */}
         <div className="flex items-center gap-0.5 min-w-0 flex-1 font-mono-code text-[11px] sm:text-[12px] leading-tight overflow-hidden">
           <button
             type="button"
             onClick={handleCopyUser}
-            title="Click to copy email/username"
+            title={isUserCopied ? "Email copied to memory (click to re-copy)" : "Click to copy email/username"}
             className={`inline-flex items-center gap-0.5 px-1 py-px rounded transition-all select-all text-left min-w-0 ${
-              copiedUser
-                ? 'bg-emerald-500/20 text-emerald-300'
-                : 'text-cyan-300 hover:bg-cyan-500/10 cursor-pointer active:scale-95'
+              justCopiedUser
+                ? 'bg-emerald-500/25 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.4)]'
+                : isUserCopied
+                  ? 'text-cyan-200/90 bg-cyan-500/10 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.25)] hover:bg-cyan-500/20 cursor-pointer'
+                  : 'text-cyan-300 hover:bg-cyan-500/10 cursor-pointer active:scale-95'
             }`}
           >
-            <span className="font-medium truncate">{item.userOrEmail}</span>
-            {copiedUser && <Check className="w-2 h-2 text-emerald-400 flex-shrink-0" />}
+            {isUserCopied && (
+              <Check className={`w-2.5 h-2.5 text-emerald-400 flex-shrink-0 ${justCopiedUser ? 'animate-pulse' : ''}`} />
+            )}
+            <span className={`truncate ${isUserCopied ? 'font-semibold' : 'font-medium'}`}>{item.userOrEmail}</span>
           </button>
 
           <span className="text-zinc-700 font-bold select-none flex-shrink-0">:</span>
@@ -183,17 +214,21 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
             type="button"
             onClick={handleCopyPass}
             disabled={!item.pass}
-            title={item.pass ? "Click to copy password" : "No password"}
+            title={!item.pass ? "No password" : isPassCopied ? "Password copied to memory (click to re-copy)" : "Click to copy password"}
             className={`inline-flex items-center gap-0.5 px-1 py-px rounded transition-all select-all text-left min-w-0 ${
               !item.pass
                 ? 'text-zinc-700 italic cursor-default'
-                : copiedPass
-                  ? 'bg-emerald-500/20 text-emerald-300'
-                  : 'text-emerald-400 hover:bg-emerald-500/10 cursor-pointer active:scale-95'
+                : justCopiedPass
+                  ? 'bg-emerald-500/25 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.4)]'
+                  : isPassCopied
+                    ? 'text-emerald-300/90 bg-emerald-500/10 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.25)] hover:bg-emerald-500/20 cursor-pointer'
+                    : 'text-emerald-400 hover:bg-emerald-500/10 cursor-pointer active:scale-95'
             }`}
           >
-            <span className="font-medium truncate">{item.pass || '—'}</span>
-            {copiedPass && <Check className="w-2 h-2 text-emerald-400 flex-shrink-0" />}
+            {isPassCopied && (
+              <Check className={`w-2.5 h-2.5 text-emerald-400 flex-shrink-0 ${justCopiedPass ? 'animate-pulse' : ''}`} />
+            )}
+            <span className={`truncate ${isPassCopied ? 'font-semibold' : 'font-medium'}`}>{item.pass || '—'}</span>
           </button>
 
           {hasDomain && (
@@ -220,6 +255,7 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
           </button>
           <button
             onClick={handleCopy}
+            title={alreadyCopied ? "Record copied to memory (click to re-copy)" : "Copy record"}
             className={`h-6 px-1.5 rounded border flex items-center gap-0.5 text-[9px] font-mono-code font-semibold transition-all ${
               alreadyCopied
                 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'

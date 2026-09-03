@@ -112,7 +112,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
       <VirtualizedFeed
         items={filteredItems} selectedIds={selectedIds} onToggleSelect={handleToggleSelect}
         isCopied={copyMemory.isCopied} onCopy={copyMemory.copyRecord} isStreaming={isStreaming}
-        isRawMode={isRawMode}
+        isRawMode={isRawMode} copyMemory={copyMemory}
       />
     </div>
   );
