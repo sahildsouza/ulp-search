@@ -3,11 +3,13 @@ import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 import { searchRoutes } from './routes/search.js';
 import { logRoutes } from './routes/logs.js';
 import { statsRoutes } from './routes/stats.js';
+import { getSystemTelemetry } from './services/telemetry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,7 +60,21 @@ fastify.setErrorHandler((error, request, reply) => {
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-const DEFAULT_PORT = 80;
+function getNetworkIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return '127.0.0.1';
+}
+
+// On Android Termux (unrooted), ports < 1024 are restricted; default seamlessly to 8080
+const isTermux = Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux'));
+const DEFAULT_PORT = isTermux ? 8080 : 80;
 let PORT = parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
@@ -66,9 +82,6 @@ try {
   await fastify.listen({ port: PORT, host: HOST });
 } catch (err) {
   if (err.code === 'EACCES' && PORT === 80) {
-    console.warn(`\n⚠️  [PERMISSION NOTICE] Port 80 is a privileged port (<1024).`);
-    console.warn(`   In Android Termux without root ('tsu'), binding to port 80 may be restricted.`);
-    console.warn(`   Auto-switching to port 8080 so your server starts immediately...\n`);
     PORT = 8080;
     try {
       await fastify.listen({ port: PORT, host: HOST });
@@ -83,10 +96,19 @@ try {
 }
 
 const localUrl = PORT === 80 ? 'http://localhost' : `http://localhost:${PORT}`;
-console.log(`\n======================================================`);
-console.log(`🚀 ULP Data Stream Inspector Fastify Server Online!`);
-console.log(`📡 Local URL:   ${localUrl}`);
-console.log(`📡 Network URL: http://${HOST === '0.0.0.0' ? '<device-ip>' : HOST}${PORT === 80 ? '' : ':' + PORT}`);
-console.log(`⚙️  Active Port: ${PORT} (Default: 80)`);
-console.log(`⚙️  Target:      Snapdragon 8 Elite / Android Termux`);
-console.log(`======================================================\n`);
+const netIp = getNetworkIp();
+const networkUrl = PORT === 80 ? `http://${netIp}` : `http://${netIp}:${PORT}`;
+
+const telemetry = getSystemTelemetry();
+const socName = telemetry.soc?.name || os.cpus()[0]?.model?.trim() || 'Generic CPU';
+const osName = telemetry.os?.distro || (isTermux ? 'Termux' : os.type());
+const arch = os.arch();
+
+console.log(`\n┌──────────────────────────────────────────────────────────────┐`);
+console.log(`│  🚀 ULP DATA STREAM INSPECTOR · FASTIFY SERVER ONLINE        │`);
+console.log(`├──────────────────────────────────────────────────────────────┤`);
+console.log(`│  📡 Local:    ${localUrl.padEnd(47)}│`);
+console.log(`│  📡 Network:  ${networkUrl.padEnd(47)}│`);
+console.log(`│  ⚙️  Platform: ${(osName + ' (' + arch + ')').padEnd(47)}│`);
+console.log(`│  ⚡ Chipset:  ${socName.slice(0, 47).padEnd(47)}│`);
+console.log(`└──────────────────────────────────────────────────────────────┘\n`);
