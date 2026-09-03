@@ -71,23 +71,36 @@ export function SearchControls({
           </div>
         </div>
 
-        {/* Confidence Filter */}
-        <div className="grid grid-cols-4 sm:flex items-center h-8 rounded-md border border-white/[0.06] overflow-hidden bg-white/[0.02] flex-shrink-0 text-[10px] font-mono-code font-bold w-full sm:w-auto">
+        {/* Classification / Stream View Filter */}
+        <div className="grid grid-cols-6 sm:flex items-center h-8 rounded-md border border-white/[0.06] overflow-hidden bg-white/[0.02] flex-shrink-0 text-[9px] sm:text-[10px] font-mono-code font-bold w-full sm:w-auto">
           <button 
             onClick={() => setConfidenceFilter('ALL')} 
-            className={`flex items-center justify-center h-full transition-colors ${confidenceFilter === 'ALL' ? 'bg-cyan-500/20 text-cyan-300' : 'text-zinc-500 hover:text-zinc-300'} sm:px-3`}
+            className={`flex items-center justify-center h-full transition-colors ${confidenceFilter === 'ALL' ? 'bg-white/[0.10] text-white' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
           >ALL</button>
           <button 
-            onClick={() => setConfidenceFilter('GREEN')} 
-            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'GREEN' ? 'bg-emerald-500/20 text-emerald-300' : 'text-zinc-500 hover:text-zinc-300'} sm:px-3`}
-          >RFC</button>
+            onClick={() => setConfidenceFilter('EP')} 
+            title="Email:Password"
+            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'EP' ? 'bg-emerald-500/20 text-emerald-300' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
+          >E:P</button>
           <button 
-            onClick={() => setConfidenceFilter('YELLOW')} 
-            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'YELLOW' ? 'bg-amber-500/20 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'} sm:px-3`}
-          >FLLB</button>
+            onClick={() => setConfidenceFilter('UP')} 
+            title="Username:Password"
+            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'UP' ? 'bg-cyan-500/20 text-cyan-300' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
+          >U:P</button>
           <button 
-            onClick={() => setConfidenceFilter('RED')} 
-            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'RED' ? 'bg-rose-500/20 text-rose-300' : 'text-zinc-500 hover:text-zinc-300'} sm:px-3`}
+            onClick={() => setConfidenceFilter('MP')} 
+            title="Mobile:Password"
+            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'MP' ? 'bg-amber-500/20 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
+          >M:P</button>
+          <button 
+            onClick={() => setConfidenceFilter('UK')} 
+            title="Unknown / Malformed"
+            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'UK' ? 'bg-rose-500/20 text-rose-300' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
+          >UK</button>
+          <button 
+            onClick={() => setConfidenceFilter('RAW')} 
+            title="Full raw line without parsing"
+            className={`flex items-center justify-center h-full border-l border-white/[0.06] transition-colors ${confidenceFilter === 'RAW' ? 'bg-purple-500/20 text-purple-300' : 'text-zinc-500 hover:text-zinc-300'} px-1 sm:px-2.5`}
           >RAW</button>
         </div>
 

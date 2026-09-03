@@ -5,33 +5,57 @@ console.log('--- Testing Smart Combo Line Parser ---');
 const testCases = [
   {
     line: 'alex.doe@gmail.com:SecretPass123!',
-    expectedConf: 'GREEN',
+    expectedConf: 'EP',
     expectedUser: 'alex.doe@gmail.com',
     expectedPass: 'SecretPass123!',
     expectedDomain: 'gmail.com'
   },
   {
     line: 'https://auth.internal.corp:8443/login:sarah.connor@cyberdyne.systems:IwillBeBack2026',
-    expectedConf: 'GREEN',
+    expectedConf: 'EP',
     expectedUser: 'sarah.connor@cyberdyne.systems',
     expectedPass: 'IwillBeBack2026',
     expectedDomain: 'cyberdyne.systems'
   },
   {
     line: 'john_wick|continental999',
-    expectedConf: 'YELLOW',
+    expectedConf: 'UP',
     expectedUser: 'john_wick',
     expectedPass: 'continental999'
   },
   {
     line: 'root;SuperAdministratorP@ssw0rd',
-    expectedConf: 'YELLOW',
+    expectedConf: 'UP',
     expectedUser: 'root',
     expectedPass: 'SuperAdministratorP@ssw0rd'
   },
   {
+    line: '+19175551234:SecretPhonePass',
+    expectedConf: 'MP',
+    expectedUser: '+19175551234',
+    expectedPass: 'SecretPhonePass'
+  },
+  {
+    line: '9876543210:IndianMobilePass2026',
+    expectedConf: 'MP',
+    expectedUser: '9876543210',
+    expectedPass: 'IndianMobilePass2026'
+  },
+  {
+    line: 'https://mybank.com:+919876543210:securePass99',
+    expectedConf: 'MP',
+    expectedUser: '+919876543210',
+    expectedPass: 'securePass99'
+  },
+  {
+    line: 'admin:simplepass',
+    expectedConf: 'UP',
+    expectedUser: 'admin',
+    expectedPass: 'simplepass'
+  },
+  {
     line: 'malformed_garbage_string_with_no_delimiter',
-    expectedConf: 'RED',
+    expectedConf: 'UK',
     expectedPass: ''
   }
 ];

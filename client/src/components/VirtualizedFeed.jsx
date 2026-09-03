@@ -4,7 +4,7 @@ import { ResultCard } from './ResultCard';
 import { Database, Loader2 } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
-export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleSelect, isCopied, onCopy, isStreaming }) {
+export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleSelect, isCopied, onCopy, isStreaming, isRawMode = false }) {
   const parentRef = useRef(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
 
@@ -20,9 +20,9 @@ export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleS
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 76,
+    estimateSize: () => 36,
     getItemKey: (index) => items[index]?.id ?? index,
-    gap: 6,
+    gap: 4,
     overscan: 12
   });
 
@@ -33,8 +33,8 @@ export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleS
         {isStreaming ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-            <h3 className="text-sm font-semibold text-white font-mono-code">INITIALIZING RG THREADS (-j 8)...</h3>
-            <p className="text-xs text-zinc-500 max-w-xs">Streaming combo credentials over SSE from log files</p>
+            <h3 className="text-sm font-semibold text-white font-mono-code">STREAMING COMBO CREDENTIALS...</h3>
+            <p className="text-xs text-zinc-500 max-w-xs">Streaming fast line matches over SSE from active log files</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
@@ -53,7 +53,7 @@ export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleS
     <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between text-[11px] font-mono-code text-zinc-500 px-0.5">
-        <span>Showing <strong className="text-zinc-300">{formatNumber(items.length)}</strong> records</span>
+        <span>Showing <strong className="text-zinc-300">{formatNumber(items.length)}</strong> {isRawMode ? 'raw log lines' : 'parsed records'}</span>
         <span className="hidden sm:inline text-zinc-700">Virtual DOM windowing active</span>
       </div>
 
@@ -87,6 +87,7 @@ export function VirtualizedFeed({ items = [], selectedIds = new Set(), onToggleS
                   onToggleExpand={() => toggleExpanded(item.id)}
                   isCopied={isCopied}
                   onCopy={onCopy}
+                  isRawMode={isRawMode}
                 />
               </div>
             );

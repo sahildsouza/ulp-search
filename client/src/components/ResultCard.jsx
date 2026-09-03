@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Copy, Check, ShieldCheck, AlertTriangle, AlertCircle, FileText, Globe, CopyCheck } from 'lucide-react';
+import { Eye, EyeOff, Copy, Check, Mail, User, Phone, HelpCircle, FileText, Globe, CopyCheck } from 'lucide-react';
 
 const CONFIDENCE_MAP = {
-  GREEN: { cls: 'badge-green', icon: ShieldCheck, label: 'RFC EMAIL', shortLabel: 'RFC' },
-  YELLOW: { cls: 'badge-yellow', icon: AlertTriangle, label: 'FALLBACK', shortLabel: 'FLLB' },
-  RED: { cls: 'badge-red', icon: AlertCircle, label: 'RAW', shortLabel: 'RAW' },
+  EP: { cls: 'badge-green', icon: Mail, label: 'EMAIL:PASS', shortLabel: 'E:P' },
+  UP: { cls: 'badge-cyan', icon: User, label: 'USER:PASS', shortLabel: 'U:P' },
+  MP: { cls: 'badge-amber', icon: Phone, label: 'MOBILE:PASS', shortLabel: 'M:P' },
+  UK: { cls: 'badge-red', icon: HelpCircle, label: 'UNKNOWN', shortLabel: 'UK' },
+  // Backward compatibility
+  GREEN: { cls: 'badge-green', icon: Mail, label: 'EMAIL:PASS', shortLabel: 'E:P' },
+  YELLOW: { cls: 'badge-cyan', icon: User, label: 'USER:PASS', shortLabel: 'U:P' },
+  RED: { cls: 'badge-red', icon: HelpCircle, label: 'UNKNOWN', shortLabel: 'UK' },
 };
 
-export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy }) {
+export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy, isRawMode }) {
   const [justCopied, setJustCopied] = useState(false);
   const [copiedRaw, setCopiedRaw] = useState(false);
   const [copiedUser, setCopiedUser] = useState(false);
@@ -61,7 +66,11 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
 
   const handleCopyRaw = async (e) => {
     e.stopPropagation();
-    try { if (navigator.clipboard) await navigator.clipboard.writeText(item.raw); setCopiedRaw(true); setTimeout(() => setCopiedRaw(false), 1500); } catch {}
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(item.raw);
+      setCopiedRaw(true);
+      setTimeout(() => setCopiedRaw(false), 1500);
+    } catch {}
   };
 
   const toggleRaw = (e) => {
@@ -69,7 +78,61 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
     onToggleExpand();
   };
 
-  const conf = CONFIDENCE_MAP[item.confidence] || CONFIDENCE_MAP.RED;
+  // Full raw unparsed line view
+  if (isRawMode) {
+    return (
+      <div className={`group rounded-lg border transition-colors duration-100 ${
+        isSelected
+          ? 'bg-cyan-950/20 border-cyan-500/40'
+          : 'bg-obsidian-200/80 border-white/[0.04] hover:border-white/[0.08]'
+      }`}>
+        <div className="flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-[7px]">
+          {/* Checkbox */}
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(item.id)}
+            className="w-3 h-3 rounded flex-shrink-0"
+          />
+
+          {/* Badge RAW */}
+          <span className="badge-purple inline-flex items-center gap-0.5 px-1 py-px rounded text-[8px] font-bold font-mono-code tracking-wider uppercase flex-shrink-0">
+            <FileText className="w-2 h-2" />
+            <span>RAW</span>
+          </span>
+
+          {/* Full raw line without parsing */}
+          <div className="flex-1 min-w-0 font-mono-code text-[11px] sm:text-[12px] leading-tight overflow-hidden">
+            <span className="text-zinc-300 font-normal select-all truncate block break-all">
+              {item.raw}
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="hidden lg:inline-flex items-center gap-0.5 px-1 py-px rounded bg-zinc-900/40 border border-zinc-800/40 text-[8px] text-zinc-600 font-mono-code truncate max-w-[90px]">
+              <FileText className="w-2 h-2" />
+              <span className="truncate">{item.file}</span>
+            </span>
+            <button
+              onClick={handleCopyRaw}
+              title="Copy full raw line"
+              className={`h-6 px-1.5 rounded border flex items-center gap-0.5 text-[9px] font-mono-code font-semibold transition-all ${
+                copiedRaw
+                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                  : 'bg-white/[0.03] text-zinc-400 border-white/[0.06] hover:text-white hover:border-cyan-500/30'
+              }`}
+            >
+              {copiedRaw ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+              <span className="hidden xs:inline">{copiedRaw ? 'COPIED' : 'COPY'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const conf = CONFIDENCE_MAP[item.confidence] || CONFIDENCE_MAP[item.type] || CONFIDENCE_MAP.UK;
   const ConfIcon = conf.icon;
 
   const hasDomain = item.domain && item.domain !== 'non-email' && item.domain !== 'unstructured';

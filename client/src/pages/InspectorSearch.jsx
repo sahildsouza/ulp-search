@@ -16,10 +16,12 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
   const mainInputRef = useRef(null);
   const filterInputRef = useRef(null);
 
+  const isRawMode = confidenceFilter === 'RAW';
+
   const filteredItems = useMemo(() => {
     let result = items;
-    if (confidenceFilter !== 'ALL') {
-      result = result.filter(item => item.confidence === confidenceFilter);
+    if (confidenceFilter !== 'ALL' && confidenceFilter !== 'RAW') {
+      result = result.filter(item => item.confidence === confidenceFilter || item.type === confidenceFilter);
     }
     if (!filterQuery.trim()) return result;
     const q = filterQuery.toLowerCase();
@@ -45,11 +47,14 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
   const handleCopySelected = async () => {
     const selected = filteredItems.filter(i => selectedIds.has(i.id));
     if (selected.length === 0) return;
-    const text = selected.map(i => `${i.userOrEmail}:${i.pass}`).join('\n');
+    const text = isRawMode
+      ? selected.map(i => i.raw).join('\n')
+      : selected.map(i => (i.pass ? `${i.userOrEmail}:${i.pass}` : i.raw)).join('\n');
+
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
       for (const item of selected) copyMemory.copyRecord(item);
-      onNotify?.(`Copied ${selected.length} credentials`, 'success');
+      onNotify?.(`Copied ${selected.length} records`, 'success');
     } catch { onNotify?.('Failed to copy', 'error'); }
   };
 
@@ -107,6 +112,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
       <VirtualizedFeed
         items={filteredItems} selectedIds={selectedIds} onToggleSelect={handleToggleSelect}
         isCopied={copyMemory.isCopied} onCopy={copyMemory.copyRecord} isStreaming={isStreaming}
+        isRawMode={isRawMode}
       />
     </div>
   );

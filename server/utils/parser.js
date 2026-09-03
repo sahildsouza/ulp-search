@@ -7,6 +7,18 @@ export const RFC5322_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9
 export const EMAIL_EXTRACT_REGEX = /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+/g;
 
 /**
+ * Checks if a string is a phone/mobile number (E.164 or national phone format)
+ * e.g. +19175551234, +919876543210, 9876543210, 07123456789, +447911123456
+ */
+export function isMobileNumber(str) {
+  if (!str || typeof str !== 'string') return false;
+  const trimmed = str.trim();
+  const digitsOnly = trimmed.replace(/[\s\-\(\)\.]/g, '');
+  // Must be between 7 and 15 digits (ITU-T E.164 max is 15 digits, min national phone is 7 digits)
+  return /^\+?\d{7,15}$/.test(digitsOnly);
+}
+
+/**
  * Fast deterministic hash for unique row tracking and copy memory
  */
 export function generateRowId(raw, file = '') {
@@ -14,13 +26,25 @@ export function generateRowId(raw, file = '') {
 }
 
 /**
+ * Classifies a user candidate into EP (Email:Pass), MP (Mobile:Pass), or UP (Username:Pass)
+ */
+function classifyCandidate(userCandidate) {
+  if (RFC5322_EMAIL_REGEX.test(userCandidate)) {
+    return 'EP';
+  }
+  if (isMobileNumber(userCandidate)) {
+    return 'MP';
+  }
+  return 'UP';
+}
+
+/**
  * Smart Combo Line Parser Engine
- * Handles any delimiter (:, |, ;, ,, \t, space) and URL combo patterns.
- * 
- * Confidence Ratings:
- *  - GREEN: Clean RFC 5322 Email Match + Password
- *  - YELLOW: Fallback Delimiter Match (non-email username or phone) + Password
- *  - RED: Unstructured line / parser inaccuracy / missing password
+ * Accurately classifies lines into:
+ *  - EP: Email:Password (RFC 5322 Email + Password)
+ *  - UP: Username:Password (Alphanumeric username + Password)
+ *  - MP: Mobile:Password (Phone number + Password)
+ *  - UK: Unknown / Malformed line
  * 
  * @param {string} rawLine - Raw log line
  * @param {string} filename - Associated source log filename
@@ -36,7 +60,6 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
   // Strategy 1: Check for Email in line (RFC 5322 Search)
   const emailMatches = [...raw.matchAll(EMAIL_EXTRACT_REGEX)];
   if (emailMatches.length > 0) {
-    // Pick the most plausible email match (usually the last or only one in combo)
     const emailMatch = emailMatches[emailMatches.length - 1];
     const emailStr = emailMatch[0];
     const emailIndex = emailMatch.index;
@@ -54,7 +77,8 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
             userOrEmail: emailStr,
             pass: pass,
             raw: raw,
-            confidence: 'GREEN',
+            confidence: 'EP',
+            type: 'EP',
             file: filename,
             domain: domain,
             timestamp: Date.now()
@@ -64,20 +88,17 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
     }
   }
 
-  // Strategy 2: Fallback Delimiter Match for Non-Email Usernames
-  // Common delimiters: ':', '|', ';', '\t', ','
-  // Strip URL scheme if present (e.g. http://site.com/login:admin:pass -> admin:pass)
+  // Strategy 2: URL & Delimiter Matching for Non-Email (User:Pass, Mobile:Pass)
   let cleanLine = raw;
   let urlPrefixDomain = '';
 
-  const urlMatch = raw.match(/^(?:https?:\/\/[^\/:]+(?::\d+)?(?:\/[^:]*)?[:|;,\t ])/i);
-  if (urlMatch) {
-    const matchedUrl = urlMatch[0];
-    const domainMatch = matchedUrl.match(/https?:\/\/([^\/:]+)/i);
-    if (domainMatch) {
-      urlPrefixDomain = domainMatch[1].toLowerCase().replace(/^www\./, '');
-    }
-    cleanLine = raw.slice(matchedUrl.length).trim();
+  // Strip protocol URLs: https://..., http://..., android://...
+  const protocolMatch = cleanLine.match(/^[a-zA-Z0-9+.-]+:\/\/[^\/:\s]+(?::\d+)?(?:\/[^:|\t;, ]*)?[:|;,\t ]/i);
+  if (protocolMatch) {
+    const matchedUrl = protocolMatch[0];
+    const hostMatch = matchedUrl.match(/:\/\/(?:www\.)?([^\/:]+)/i);
+    if (hostMatch) urlPrefixDomain = hostMatch[1].toLowerCase();
+    cleanLine = cleanLine.slice(matchedUrl.length).trim();
   }
 
   const delimiters = [':', '|', ';', '\t', ','];
@@ -85,23 +106,40 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
     if (cleanLine.includes(delim)) {
       const parts = cleanLine.split(delim);
       if (parts.length >= 2) {
-        // user is the first part, pass is the remaining joined or second part
-        const userCandidate = parts[0].trim();
-        const passCandidate = parts.slice(1).join(delim).trim();
+        let userCandidate = '';
+        let passCandidate = '';
+        let domain = urlPrefixDomain;
 
-        if (userCandidate.length >= 2 && passCandidate.length > 0) {
-          // Check if candidate happens to be valid email
-          const isEmail = RFC5322_EMAIL_REGEX.test(userCandidate);
-          const domain = isEmail 
-            ? userCandidate.split('@')[1]?.toLowerCase() 
-            : (urlPrefixDomain || 'non-email');
+        // Check if parts[0] is a domain/host or IP without protocol (e.g. site.com:user:pass)
+        const isHost = /(?:^[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d+)?$/.test(parts[0]) || 
+                      /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?$/.test(parts[0]);
+
+        if (isHost && parts.length >= 3) {
+          domain = parts[0].split(':')[0].toLowerCase();
+          userCandidate = parts[1].trim();
+          passCandidate = parts.slice(2).join(delim).trim();
+        } else {
+          userCandidate = parts[0].trim();
+          passCandidate = parts.slice(1).join(delim).trim();
+        }
+
+        if (userCandidate.length >= 1 && passCandidate.length > 0) {
+          const conf = classifyCandidate(userCandidate);
+          if (conf === 'EP') {
+            domain = userCandidate.split('@')[1]?.toLowerCase() || domain || 'email';
+          } else if (conf === 'MP') {
+            domain = domain || 'mobile';
+          } else {
+            domain = domain || 'username';
+          }
 
           return {
             id: rowId,
             userOrEmail: userCandidate,
             pass: passCandidate,
             raw: raw,
-            confidence: isEmail ? 'GREEN' : 'YELLOW',
+            confidence: conf,
+            type: conf,
             file: filename,
             domain: domain,
             timestamp: Date.now()
@@ -111,29 +149,31 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
     }
   }
 
-  // Strategy 3: Space separated fallback
+  // Strategy 3: Space-separated fallback (e.g. "user pass" or "9876543210 pass")
   const spaceParts = raw.split(/\s+/);
-  if (spaceParts.length === 2 && spaceParts[0].length >= 2 && spaceParts[1].length > 0) {
-    const isEmail = RFC5322_EMAIL_REGEX.test(spaceParts[0]);
+  if (spaceParts.length === 2 && spaceParts[0].length >= 1 && spaceParts[1].length > 0) {
+    const conf = classifyCandidate(spaceParts[0]);
     return {
       id: rowId,
       userOrEmail: spaceParts[0],
       pass: spaceParts[1],
       raw: raw,
-      confidence: isEmail ? 'GREEN' : 'YELLOW',
+      confidence: conf,
+      type: conf,
       file: filename,
-      domain: isEmail ? spaceParts[0].split('@')[1]?.toLowerCase() : (urlPrefixDomain || 'non-email'),
+      domain: conf === 'EP' ? spaceParts[0].split('@')[1]?.toLowerCase() : (urlPrefixDomain || (conf === 'MP' ? 'mobile' : 'username')),
       timestamp: Date.now()
     };
   }
 
-  // Strategy 4: Unstructured Line (RED confidence)
+  // Strategy 4: Unknown / Unstructured Line (UK)
   return {
     id: rowId,
     userOrEmail: raw,
     pass: '',
     raw: raw,
-    confidence: 'RED',
+    confidence: 'UK',
+    type: 'UK',
     file: filename,
     domain: 'unstructured',
     timestamp: Date.now()
