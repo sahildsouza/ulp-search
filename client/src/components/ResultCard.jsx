@@ -75,129 +75,112 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
   const hasDomain = item.domain && item.domain !== 'non-email' && item.domain !== 'unstructured';
 
   return (
-    <div className={`group rounded-xl border transition-colors duration-150 ${
+    <div className={`group rounded-lg border transition-colors duration-100 ${
       isSelected
-        ? 'bg-cyan-950/20 border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+        ? 'bg-cyan-950/20 border-cyan-500/40'
         : 'bg-obsidian-200/80 border-white/[0.04] hover:border-white/[0.08]'
     }`}>
 
-      <div className="p-3 sm:p-3.5">
+      {/* ── Single compact row ── */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-[7px]">
 
-        {/* Row 1: Meta + Actions */}
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect(item.id)}
-              className="w-3.5 h-3.5 rounded flex-shrink-0"
-            />
-            <span className={`${conf.cls} inline-flex items-center gap-1 px-1.5 py-[2px] rounded text-[9px] font-bold font-mono-code tracking-wider uppercase flex-shrink-0`}>
-              <ConfIcon className="w-2.5 h-2.5" />
-              <span className="hidden sm:inline">{conf.label}</span>
-              <span className="sm:hidden">{conf.shortLabel}</span>
-            </span>
-            {hasDomain && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-[2px] rounded bg-zinc-900/70 border border-zinc-800/60 text-[10px] text-zinc-500 font-mono-code truncate max-w-[120px] sm:max-w-[160px]">
-                <Globe className="w-2.5 h-2.5 text-cyan-500/70 flex-shrink-0" />
-                <span className="truncate">{item.domain}</span>
-              </span>
-            )}
-          </div>
+        {/* Checkbox */}
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(item.id)}
+          className="w-3 h-3 rounded flex-shrink-0"
+        />
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <span className="hidden md:inline-flex items-center gap-1 px-1.5 py-[2px] rounded bg-zinc-900/50 border border-zinc-800/50 text-[9px] text-zinc-600 font-mono-code truncate max-w-[100px]">
-              <FileText className="w-2.5 h-2.5" />
-              <span className="truncate">{item.file}</span>
-            </span>
-            <button
-              onClick={toggleRaw}
-              className={`w-7 h-7 rounded-md border flex items-center justify-center transition-colors ${
-                isExpanded ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' : 'bg-white/[0.03] text-zinc-500 border-white/[0.05] hover:text-zinc-300'
-              }`}
-            >
-              {isExpanded ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-            </button>
-            <button
-              onClick={handleCopy}
-              className={`h-7 px-2 rounded-md border flex items-center gap-1 text-[10px] font-mono-code font-semibold transition-all ${
-                alreadyCopied
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                  : justCopied
-                    ? 'bg-cyan-500 text-black border-cyan-400'
-                    : 'bg-white/[0.03] text-zinc-400 border-white/[0.06] hover:text-white hover:border-cyan-500/30'
-              }`}
-            >
-              {alreadyCopied || justCopied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
-              <span className="hidden xs:inline">{alreadyCopied || justCopied ? 'COPIED' : 'COPY'}</span>
-            </button>
-          </div>
-        </div>
+        {/* Badge */}
+        <span className={`${conf.cls} inline-flex items-center gap-0.5 px-1 py-px rounded text-[8px] font-bold font-mono-code tracking-wider uppercase flex-shrink-0`}>
+          <ConfIcon className="w-2 h-2" />
+          <span>{conf.shortLabel}</span>
+        </span>
 
-        {/* Row 2: Credentials (Click to Copy Individually) */}
-        <div className="flex items-center flex-wrap gap-1 text-[13px] sm:text-sm font-mono-code leading-relaxed pt-0.5">
-          {/* User / Email */}
+        {/* Credentials inline */}
+        <div className="flex items-center gap-0.5 min-w-0 flex-1 font-mono-code text-[11px] sm:text-[12px] leading-tight overflow-hidden">
           <button
             type="button"
             onClick={handleCopyUser}
             title="Click to copy email/username"
-            className={`group/user inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all select-all text-left ${
+            className={`inline-flex items-center gap-0.5 px-1 py-px rounded transition-all select-all text-left min-w-0 ${
               copiedUser
-                ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                : 'text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 cursor-pointer active:scale-95'
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : 'text-cyan-300 hover:bg-cyan-500/10 cursor-pointer active:scale-95'
             }`}
           >
-            <span className="font-medium break-all">{item.userOrEmail}</span>
-            {copiedUser ? (
-              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/90 px-1 py-px rounded border border-emerald-500/30">
-                <Check className="w-2.5 h-2.5" />
-                <span>COPIED</span>
-              </span>
-            ) : (
-              <Copy className="w-2.5 h-2.5 opacity-0 group-hover/user:opacity-60 transition-opacity flex-shrink-0" />
-            )}
+            <span className="font-medium truncate">{item.userOrEmail}</span>
+            {copiedUser && <Check className="w-2 h-2 text-emerald-400 flex-shrink-0" />}
           </button>
 
-          <span className="text-zinc-700 font-bold select-none px-0.5">:</span>
+          <span className="text-zinc-700 font-bold select-none flex-shrink-0">:</span>
 
-          {/* Password */}
           <button
             type="button"
             onClick={handleCopyPass}
             disabled={!item.pass}
             title={item.pass ? "Click to copy password" : "No password"}
-            className={`group/pass inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all select-all text-left ${
+            className={`inline-flex items-center gap-0.5 px-1 py-px rounded transition-all select-all text-left min-w-0 ${
               !item.pass
                 ? 'text-zinc-700 italic cursor-default'
                 : copiedPass
-                  ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                  : 'text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 cursor-pointer active:scale-95'
+                  ? 'bg-emerald-500/20 text-emerald-300'
+                  : 'text-emerald-400 hover:bg-emerald-500/10 cursor-pointer active:scale-95'
             }`}
           >
-            <span className="font-medium break-all">{item.pass || '—'}</span>
-            {copiedPass ? (
-              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/90 px-1 py-px rounded border border-emerald-500/30">
-                <Check className="w-2.5 h-2.5" />
-                <span>COPIED</span>
-              </span>
-            ) : (
-              item.pass && <Copy className="w-2.5 h-2.5 opacity-0 group-hover/pass:opacity-60 transition-opacity flex-shrink-0" />
-            )}
+            <span className="font-medium truncate">{item.pass || '—'}</span>
+            {copiedPass && <Check className="w-2 h-2 text-emerald-400 flex-shrink-0" />}
+          </button>
+
+          {hasDomain && (
+            <span className="hidden sm:inline-flex items-center gap-0.5 px-1 py-px rounded bg-zinc-900/50 border border-zinc-800/50 text-[9px] text-zinc-600 font-mono-code truncate max-w-[100px] ml-1 flex-shrink-0">
+              <Globe className="w-2 h-2 text-cyan-500/50 flex-shrink-0" />
+              <span className="truncate">{item.domain}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="hidden lg:inline-flex items-center gap-0.5 px-1 py-px rounded bg-zinc-900/40 border border-zinc-800/40 text-[8px] text-zinc-600 font-mono-code truncate max-w-[80px]">
+            <FileText className="w-2 h-2" />
+            <span className="truncate">{item.file}</span>
+          </span>
+          <button
+            onClick={toggleRaw}
+            className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${
+              isExpanded ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' : 'bg-white/[0.03] text-zinc-500 border-white/[0.05] hover:text-zinc-300'
+            }`}
+          >
+            {isExpanded ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
+          </button>
+          <button
+            onClick={handleCopy}
+            className={`h-6 px-1.5 rounded border flex items-center gap-0.5 text-[9px] font-mono-code font-semibold transition-all ${
+              alreadyCopied
+                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                : justCopied
+                  ? 'bg-cyan-500 text-black border-cyan-400'
+                  : 'bg-white/[0.03] text-zinc-400 border-white/[0.06] hover:text-white hover:border-cyan-500/30'
+            }`}
+          >
+            {alreadyCopied || justCopied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
           </button>
         </div>
       </div>
 
       {/* Raw drawer */}
       {isExpanded && (
-        <div className="px-3 sm:px-3.5 pb-3 pt-2 border-t border-white/[0.05]">
-          <div className="flex items-center justify-between mb-1.5 text-[9px] text-zinc-600 font-mono-code uppercase tracking-wider">
-            <span>Raw Line · {item.file}</span>
-            <button onClick={handleCopyRaw} className="flex items-center gap-1 text-cyan-400/70 hover:text-cyan-300 transition-colors">
-              {copiedRaw ? <CopyCheck className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+        <div className="px-2 sm:px-2.5 pb-2 pt-1.5 border-t border-white/[0.05]">
+          <div className="flex items-center justify-between mb-1 text-[8px] text-zinc-600 font-mono-code uppercase tracking-wider">
+            <span>Raw · {item.file}</span>
+            <button onClick={handleCopyRaw} className="flex items-center gap-0.5 text-cyan-400/70 hover:text-cyan-300 transition-colors">
+              {copiedRaw ? <CopyCheck className="w-2 h-2 text-emerald-400" /> : <Copy className="w-2 h-2" />}
               <span>{copiedRaw ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <div className="p-2 rounded-md bg-black border border-zinc-900 font-mono-code text-[11px] text-zinc-400 break-all select-all whitespace-pre-wrap leading-relaxed">
+          <div className="px-1.5 py-1 rounded bg-black border border-zinc-900 font-mono-code text-[10px] text-zinc-400 break-all select-all whitespace-pre-wrap leading-snug">
             {item.raw}
           </div>
         </div>
