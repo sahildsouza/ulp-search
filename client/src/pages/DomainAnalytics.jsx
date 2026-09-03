@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, Globe, ShieldCheck, AlertTriangle, Layers, TrendingUp, ExternalLink, PieChart, Search, X } from 'lucide-react';
+import { 
+  BarChart3, Globe, Mail, User, Phone, HelpCircle, 
+  Layers, TrendingUp, ExternalLink, PieChart, Search, X, 
+  KeyRound, ShieldCheck 
+} from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
 
 function MetricCard({ label, icon, value, valueColor = 'text-white', sub }) {
@@ -10,7 +14,7 @@ function MetricCard({ label, icon, value, valueColor = 'text-white', sub }) {
         {icon}
       </div>
       <div className={`text-lg sm:text-xl font-bold ${valueColor}`}>{value}</div>
-      <div className="text-[9px] text-zinc-600">{sub}</div>
+      <div className="text-[9px] text-zinc-600 truncate">{sub}</div>
     </div>
   );
 }
@@ -20,28 +24,117 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
 
   const analytics = useMemo(() => {
     const total = items.length;
-    if (total === 0) return { totalItems: 0, uniqueDomains: 0, rfcEmailCount: 0, rfcEmailRatio: '0.0', fallbackCount: 0, fallbackRatio: '0.0', unstructuredCount: 0, unstructuredRatio: '0.0', topDomains: [], tldDistribution: [] };
+    if (total === 0) {
+      return {
+        totalItems: 0,
+        uniqueDomains: 0,
+        epCount: 0, epRatio: '0.0',
+        upCount: 0, upRatio: '0.0',
+        mpCount: 0, mpRatio: '0.0',
+        ukCount: 0, ukRatio: '0.0',
+        weakPassCount: 0, weakPassRatio: '0.0',
+        medPassCount: 0, medPassRatio: '0.0',
+        strongPassCount: 0, strongPassRatio: '0.0',
+        avgPassLen: 0,
+        topDomains: [],
+        tldDistribution: []
+      };
+    }
 
-    const domainFreq = {}, tldFreq = {};
-    let rfc = 0, fb = 0, raw = 0;
+    const domainFreq = {};
+    const tldFreq = {};
+    let ep = 0, up = 0, mp = 0, uk = 0;
+    let weakPass = 0, medPass = 0, strongPass = 0;
+    let totalPassLen = 0;
+    let passCount = 0;
+
     for (const item of items) {
-      if (item.confidence === 'GREEN') rfc++; else if (item.confidence === 'YELLOW') fb++; else raw++;
-      const d = item.domain;
-      if (d && d !== 'non-email' && d !== 'unstructured') {
-        const dl = d.toLowerCase();
-        domainFreq[dl] = (domainFreq[dl] || 0) + 1;
-        const parts = dl.split('.');
-        if (parts.length >= 2) { const tld = `.${parts.slice(-1)[0]}`; tldFreq[tld] = (tldFreq[tld] || 0) + 1; }
+      // Classification check (supporting both new EP/UP/MP/UK and legacy GREEN/YELLOW/RED)
+      const conf = item.confidence || item.type || 'UK';
+      if (conf === 'EP' || conf === 'GREEN') {
+        ep++;
+      } else if (conf === 'MP') {
+        mp++;
+      } else if (conf === 'UP' || conf === 'YELLOW') {
+        up++;
+      } else {
+        uk++;
+      }
+
+      // Password profiling
+      if (item.pass && typeof item.pass === 'string') {
+        const pLen = item.pass.length;
+        totalPassLen += pLen;
+        passCount++;
+        if (pLen < 8) weakPass++;
+        else if (pLen <= 12) medPass++;
+        else strongPass++;
+      }
+
+      // Domain extraction
+      let d = item.domain;
+      // Fallback: extract domain from email if domain is generic or missing
+      if ((!d || ['email', 'non-email', 'unstructured', 'username', 'mobile'].includes(d)) && item.userOrEmail && item.userOrEmail.includes('@')) {
+        d = item.userOrEmail.split('@')[1];
+      }
+
+      if (d && typeof d === 'string') {
+        // Clean domain: strip port, trailing slash, protocol
+        const cleanDomain = d.toLowerCase().replace(/:\d+$/, '').replace(/\/.*$/, '').replace(/^www\./, '').trim();
+        // Ignore generic placeholders
+        if (cleanDomain && !['non-email', 'unstructured', 'username', 'mobile', 'email'].includes(cleanDomain)) {
+          // Must have at least one dot to be a valid domain name
+          if (cleanDomain.includes('.') && cleanDomain.length >= 4) {
+            domainFreq[cleanDomain] = (domainFreq[cleanDomain] || 0) + 1;
+            const parts = cleanDomain.split('.');
+            if (parts.length >= 2) {
+              const tld = `.${parts.slice(-1)[0]}`;
+              if (/^\.[a-z]{2,10}$/i.test(tld)) {
+                tldFreq[tld] = (tldFreq[tld] || 0) + 1;
+              }
+            }
+          }
+        }
       }
     }
 
+    const domainList = Object.entries(domainFreq)
+      .sort((a, b) => b[1] - a[1])
+      .map(([domain, count]) => ({
+        domain,
+        count,
+        percentage: ((count / total) * 100).toFixed(1)
+      }));
+
+    const tldList = Object.entries(tldFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tld, count]) => ({
+        tld,
+        count,
+        percentage: ((count / total) * 100).toFixed(1)
+      }));
+
     return {
-      totalItems: total, uniqueDomains: Object.keys(domainFreq).length,
-      rfcEmailCount: rfc, rfcEmailRatio: ((rfc / total) * 100).toFixed(1),
-      fallbackCount: fb, fallbackRatio: ((fb / total) * 100).toFixed(1),
-      unstructuredCount: raw, unstructuredRatio: ((raw / total) * 100).toFixed(1),
-      topDomains: Object.entries(domainFreq).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([domain, count]) => ({ domain, count, percentage: ((count / total) * 100).toFixed(1) })),
-      tldDistribution: Object.entries(tldFreq).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([tld, count]) => ({ tld, count, percentage: ((count / total) * 100).toFixed(1) }))
+      totalItems: total,
+      uniqueDomains: domainList.length,
+      epCount: ep,
+      epRatio: ((ep / total) * 100).toFixed(1),
+      upCount: up,
+      upRatio: ((up / total) * 100).toFixed(1),
+      mpCount: mp,
+      mpRatio: ((mp / total) * 100).toFixed(1),
+      ukCount: uk,
+      ukRatio: ((uk / total) * 100).toFixed(1),
+      avgPassLen: passCount > 0 ? (totalPassLen / passCount).toFixed(1) : 0,
+      weakPassCount: weakPass,
+      weakPassRatio: passCount > 0 ? ((weakPass / passCount) * 100).toFixed(1) : '0.0',
+      medPassCount: medPass,
+      medPassRatio: passCount > 0 ? ((medPass / passCount) * 100).toFixed(1) : '0.0',
+      strongPassCount: strongPass,
+      strongPassRatio: passCount > 0 ? ((strongPass / passCount) * 100).toFixed(1) : '0.0',
+      topDomains: domainList.slice(0, 50),
+      tldDistribution: tldList
     };
   }, [items]);
 
@@ -57,8 +150,17 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
         <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto text-cyan-400/60 mb-3">
           <BarChart3 className="w-6 h-6" />
         </div>
-        <h2 className="text-sm font-bold text-white mb-1.5">NO STREAM DATA</h2>
-        <p className="text-xs text-zinc-500 max-w-md mx-auto">Start a search in <strong>Inspector Search</strong> to generate real-time domain analytics and TLD distributions.</p>
+        <h2 className="text-sm font-bold text-white mb-1.5">NO STREAM DATA YET</h2>
+        <p className="text-xs text-zinc-500 max-w-md mx-auto mb-4">
+          Start a search stream in <strong>Inspector Search</strong> to generate real-time domain analytics, classification breakdown, and TLD distributions.
+        </p>
+        <button
+          onClick={() => onFilterByDomain('')}
+          className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-bold transition-all inline-flex items-center gap-2"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>Open Inspector Search</span>
+        </button>
       </div>
     );
   }
@@ -66,28 +168,104 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 py-4 sm:py-5 space-y-3 font-mono-code text-xs">
 
-      {/* ── Metric Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <MetricCard label="Records" icon={<Layers className="w-3.5 h-3.5 text-cyan-400" />} value={formatNumber(analytics.totalItems)} sub="Active stream" />
-        <MetricCard label="Domains" icon={<Globe className="w-3.5 h-3.5 text-cyan-400" />} value={formatNumber(analytics.uniqueDomains)} valueColor="text-cyan-400" sub="Distinct hostnames" />
-        <MetricCard label="RFC Accuracy" icon={<ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />} value={`${analytics.rfcEmailRatio}%`} valueColor="text-emerald-400" sub={`${formatNumber(analytics.rfcEmailCount)} validated`} />
-        <MetricCard label="Fallback" icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-400" />} value={formatNumber(analytics.fallbackCount)} valueColor="text-amber-400" sub="Non-email tokens" />
+      {/* ── Metric Cards Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <MetricCard 
+          label="Total Records" 
+          icon={<Layers className="w-3.5 h-3.5 text-cyan-400" />} 
+          value={formatNumber(analytics.totalItems)} 
+          sub="Streamed credentials" 
+        />
+        <MetricCard 
+          label="Unique Domains" 
+          icon={<Globe className="w-3.5 h-3.5 text-cyan-400" />} 
+          value={formatNumber(analytics.uniqueDomains)} 
+          valueColor="text-cyan-400" 
+          sub="Distinct hostnames" 
+        />
+        <MetricCard 
+          label="E:P (Emails)" 
+          icon={<Mail className="w-3.5 h-3.5 text-emerald-400" />} 
+          value={`${analytics.epRatio}%`} 
+          valueColor="text-emerald-400" 
+          sub={`${formatNumber(analytics.epCount)} pairs`} 
+        />
+        <MetricCard 
+          label="U:P (Usernames)" 
+          icon={<User className="w-3.5 h-3.5 text-cyan-300" />} 
+          value={`${analytics.upRatio}%`} 
+          valueColor="text-cyan-300" 
+          sub={`${formatNumber(analytics.upCount)} pairs`} 
+        />
+        <MetricCard 
+          label="M:P (Mobiles)" 
+          icon={<Phone className="w-3.5 h-3.5 text-amber-400" />} 
+          value={`${analytics.mpRatio}%`} 
+          valueColor="text-amber-400" 
+          sub={`${formatNumber(analytics.mpCount)} pairs`} 
+        />
       </div>
 
-      {/* ── Confidence Bar ── */}
+      {/* ── Classification Breakdown Bar ── */}
       <div className="p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-          <span className="font-bold text-white uppercase text-[10px] tracking-wider">Parser Confidence</span>
-          <div className="flex items-center gap-3 text-[9px]">
-            <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />RFC {analytics.rfcEmailRatio}%</span>
-            <span className="flex items-center gap-1 text-amber-400"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Fallback {analytics.fallbackRatio}%</span>
-            <span className="flex items-center gap-1 text-rose-400"><span className="w-1.5 h-1.5 rounded-full bg-rose-400" />Raw {analytics.unstructuredRatio}%</span>
+          <span className="font-bold text-white uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Credential Classification Breakdown</span>
+          </span>
+          <div className="flex items-center gap-3 text-[9px] flex-wrap">
+            <span className="flex items-center gap-1 text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              E:P {analytics.epRatio}% ({formatNumber(analytics.epCount)})
+            </span>
+            <span className="flex items-center gap-1 text-cyan-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              U:P {analytics.upRatio}% ({formatNumber(analytics.upCount)})
+            </span>
+            <span className="flex items-center gap-1 text-amber-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              M:P {analytics.mpRatio}% ({formatNumber(analytics.mpCount)})
+            </span>
+            <span className="flex items-center gap-1 text-rose-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              UK {analytics.ukRatio}% ({formatNumber(analytics.ukCount)})
+            </span>
           </div>
         </div>
         <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden flex">
-          <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${analytics.rfcEmailRatio}%` }} />
-          <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${analytics.fallbackRatio}%` }} />
-          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${analytics.unstructuredRatio}%` }} />
+          <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${analytics.epRatio}%` }} title={`Email:Pass: ${analytics.epRatio}%`} />
+          <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${analytics.upRatio}%` }} title={`User:Pass: ${analytics.upRatio}%`} />
+          <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${analytics.mpRatio}%` }} title={`Mobile:Pass: ${analytics.mpRatio}%`} />
+          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${analytics.ukRatio}%` }} title={`Unknown: ${analytics.ukRatio}%`} />
+        </div>
+      </div>
+
+      {/* ── Password Security Profile ── */}
+      <div className="p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+          <span className="font-bold text-white uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+            <span>Password Security Profile (Avg: {analytics.avgPassLen} chars)</span>
+          </span>
+          <div className="flex items-center gap-3 text-[9px] flex-wrap">
+            <span className="flex items-center gap-1 text-rose-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              Short (&lt;8 chars) {analytics.weakPassRatio}%
+            </span>
+            <span className="flex items-center gap-1 text-amber-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              Medium (8-12 chars) {analytics.medPassRatio}%
+            </span>
+            <span className="flex items-center gap-1 text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Strong (&gt;12 chars) {analytics.strongPassRatio}%
+            </span>
+          </div>
+        </div>
+        <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden flex">
+          <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${analytics.weakPassRatio}%` }} />
+          <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${analytics.medPassRatio}%` }} />
+          <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${analytics.strongPassRatio}%` }} />
         </div>
       </div>
 
@@ -100,12 +278,13 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
             <div className="flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
               <h3 className="text-[11px] font-bold text-white uppercase tracking-wider">Domain Leaderboard</h3>
+              <span className="text-[10px] text-zinc-500">({analytics.uniqueDomains} total)</span>
             </div>
             <div className="relative">
               <Search className="w-3 h-3 text-zinc-600 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                type="text" value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)} placeholder="Filter..."
-                className="h-7 w-36 pl-6 pr-6 bg-white/[0.03] border border-white/[0.05] rounded-md text-[10px] text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-500/40 transition-colors"
+                type="text" value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)} placeholder="Filter domains..."
+                className="h-7 w-40 pl-6 pr-6 bg-white/[0.03] border border-white/[0.05] rounded-md text-[10px] text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-500/40 transition-colors"
               />
               {domainFilter && (
                 <button onClick={() => setDomainFilter('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400">
@@ -151,18 +330,22 @@ export function DomainAnalytics({ items = [], onFilterByDomain }) {
           </div>
 
           <div className="space-y-1.5 flex-1">
-            {analytics.tldDistribution.map((t) => (
-              <div key={t.tld} onClick={() => onFilterByDomain(t.tld)}
-                className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.03] hover:border-cyan-500/20 cursor-pointer transition-all space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-cyan-300 text-[11px]">{t.tld}</span>
-                  <span className="text-zinc-500 text-[10px]">{formatNumber(t.count)} ({t.percentage}%)</span>
+            {analytics.tldDistribution.length === 0 ? (
+              <div className="text-center py-6 text-zinc-600">No TLDs discovered</div>
+            ) : (
+              analytics.tldDistribution.map((t) => (
+                <div key={t.tld} onClick={() => onFilterByDomain(t.tld)}
+                  className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.03] hover:border-cyan-500/20 cursor-pointer transition-all space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-cyan-300 text-[11px]">{t.tld}</span>
+                    <span className="text-zinc-500 text-[10px]">{formatNumber(t.count)} ({t.percentage}%)</span>
+                  </div>
+                  <div className="w-full h-[3px] bg-zinc-900 rounded-full overflow-hidden">
+                    <div className="bg-cyan-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.max(3, parseFloat(t.percentage)))}%` }} />
+                  </div>
                 </div>
-                <div className="w-full h-[3px] bg-zinc-900 rounded-full overflow-hidden">
-                  <div className="bg-cyan-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.max(3, parseFloat(t.percentage)))}%` }} />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <div className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] text-[9px] text-zinc-500">
