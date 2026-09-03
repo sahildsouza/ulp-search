@@ -164,14 +164,11 @@ export async function searchRoutes(fastify, options) {
       const parsed = parseComboLine(content, filename);
       if (!parsed) return;
 
-      // Domain-only filtering: ensure query matched the site domain or email domain
+      // Domain-only filtering: strictly ensure query matches the site/service domain
       if (domainOnly && query.length > 0) {
         const target = query.toLowerCase();
         const itemDomain = (parsed.domain || '').toLowerCase();
-        const emailDomain = (parsed.userOrEmail && parsed.userOrEmail.includes('@'))
-          ? parsed.userOrEmail.split('@')[1]?.toLowerCase()
-          : '';
-        if (!itemDomain.includes(target) && !emailDomain.includes(target)) {
+        if (!itemDomain.includes(target)) {
           return;
         }
       }

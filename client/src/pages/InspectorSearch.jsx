@@ -24,6 +24,10 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
     if (confidenceFilter !== 'ALL' && confidenceFilter !== 'RAW') {
       result = result.filter(item => item.confidence === confidenceFilter || item.type === confidenceFilter);
     }
+    if (searchDomainOnly && searchQuery.trim()) {
+      const sq = searchQuery.trim().toLowerCase();
+      result = result.filter(item => (item.domain || '').toLowerCase().includes(sq));
+    }
     if (!filterQuery.trim()) return result;
     const q = filterQuery.toLowerCase();
     return result.filter(item =>
@@ -33,7 +37,7 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
       (item.file?.toLowerCase().includes(q)) ||
       (item.raw?.toLowerCase().includes(q))
     );
-  }, [items, filterQuery, confidenceFilter]);
+  }, [items, filterQuery, confidenceFilter, searchDomainOnly, searchQuery]);
 
   const handleStartSearch = () => { 
     setSelectedIds(new Set()); 
