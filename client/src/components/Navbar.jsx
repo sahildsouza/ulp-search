@@ -17,10 +17,10 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
 
   return (
     <header className="sticky top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/[0.06]">
-      <div className="max-w-7xl mx-auto h-14 sm:h-[60px] flex items-center justify-between px-2 sm:px-4 lg:px-8 gap-1.5 sm:gap-3">
+      <div className="relative max-w-7xl mx-auto h-14 sm:h-[60px] flex items-center justify-between px-2.5 sm:px-4 lg:px-8">
 
         {/* ── Brand ── */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 z-10 flex-shrink-0">
           <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-obsidian-200 border border-cyan-500/25 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.15)] flex-shrink-0">
             <Radio className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 ${isActive ? 'animate-pulse' : ''}`} />
             {(isActive || isPaused) && (
@@ -40,34 +40,36 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
           </div>
         </div>
 
-        {/* ── Navigation Tabs ── */}
-        <nav className="flex items-center gap-0.5 sm:gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06] flex-shrink-0 shadow-inner">
-          {TAB_ITEMS.map(({ key, icon: Icon, label, shortLabel }) => {
-            const active = activeTab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`
-                  flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-9 rounded-lg text-xs sm:text-xs font-semibold
-                  transition-all duration-150 whitespace-nowrap active:scale-95
-                  ${active
-                    ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.4)]'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
-                  }
-                `}
-              >
-                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{label}</span>
-                <span className="sm:hidden">{shortLabel}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* ── Navigation Tabs (Permanently Fixed in Dead-Center) ── */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-20">
+          <nav className="pointer-events-auto flex items-center gap-0.5 sm:gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06] shadow-inner">
+            {TAB_ITEMS.map(({ key, icon: Icon, label, shortLabel }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`
+                    flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-9 rounded-lg text-xs sm:text-xs font-semibold
+                    transition-all duration-150 whitespace-nowrap active:scale-95
+                    ${active
+                      ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.4)]'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
+                    }
+                  `}
+                >
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{shortLabel}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-        {/* ── Right: Stream throughput / status (Mobile-compact, zero overflow) ── */}
-        <div className="flex items-center flex-shrink-0">
-          <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono-code text-[10px] sm:text-[11px]">
+        {/* ── Right: Stream throughput / status (Right-anchored, Stable) ── */}
+        <div className="flex items-center justify-end z-10 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 rounded-md sm:rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono-code text-[10px] sm:text-[11px] tabular-nums min-w-[58px] sm:min-w-[110px] justify-center">
             <span className={`flex items-center gap-1 font-semibold ${isActive ? 'text-cyan-300' : isPaused ? 'text-amber-300' : 'text-zinc-500'}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor} flex-shrink-0`} />
               <span className="hidden sm:inline">{statusLabel}</span>
