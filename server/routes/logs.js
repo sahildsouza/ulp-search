@@ -1,16 +1,21 @@
-wimport {
-  listLogFiles,
-    toggleFileActive,
-    setFilesActive,
-    renameLogFile,
-    deleteLogFiles
+import { 
+  listLogFiles, 
+  toggleFileActive, 
+  setFilesActive, 
+  renameLogFile, 
+  deleteLogFiles 
 } from '../services/logManager.js';
-import { generateMockLogs } from '../../generate_mock_data.js';
 
 export async function logRoutes(fastify, options) {
-  // List all log files with metadata and line counts
+  // List all log files with metadata and line counts (cached)
   fastify.get('/api/logs', async (req, reply) => {
-    const data = await listLogFiles();
+    const forceRefresh = req.query?.refresh === '1';
+    const clientVersion = req.query?.version;
+    const data = await listLogFiles(forceRefresh);
+
+    if (clientVersion && clientVersion === data.version && !forceRefresh) {
+      return { notModified: true, version: data.version };
+    }
     return data;
   });
 
@@ -61,18 +66,5 @@ export async function logRoutes(fastify, options) {
     }
     const deleted = deleteLogFiles(filenames);
     return { success: true, deleted };
-  });
-
-  // Generate mock logs
-  fastify.post('/api/logs/generate-mock', async (req, reply) => {
-    const { count = 25000, filename = `test_combo_${Date.now()}.txt` } = req.body || {};
-    try {
-      generateMockLogs([{ name: filename, lines: Math.min(100000, Math.max(1000, count)) }]);
-      const data = await listLogFiles();
-      return { success: true, filename, data };
-    } catch (err) {
-      reply.code(500);
-      return { error: err.message };
-    }
   });
 }
