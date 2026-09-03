@@ -17,7 +17,7 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
 
   return (
     <header className="sticky top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/[0.06]">
-      <div className="max-w-7xl mx-auto h-12 sm:h-14 flex items-center justify-between px-2 sm:px-4 lg:px-8 gap-1.5 sm:gap-3">
+      <div className="max-w-7xl mx-auto h-14 sm:h-[60px] flex items-center justify-between px-2 sm:px-4 lg:px-8 gap-1.5 sm:gap-3">
 
         {/* ── Brand ── */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
@@ -41,7 +41,7 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
         </div>
 
         {/* ── Navigation Tabs ── */}
-        <nav className="flex items-center gap-px bg-white/[0.03] p-[2px] sm:p-[3px] rounded-lg border border-white/[0.04] flex-shrink-0">
+        <nav className="flex items-center gap-0.5 sm:gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06] flex-shrink-0 shadow-inner">
           {TAB_ITEMS.map(({ key, icon: Icon, label, shortLabel }) => {
             const active = activeTab === key;
             return (
@@ -49,15 +49,15 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
                 key={key}
                 onClick={() => setActiveTab(key)}
                 className={`
-                  flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-[5px] rounded-md text-[10px] sm:text-xs font-semibold
-                  transition-all duration-150 whitespace-nowrap
+                  flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 h-8 sm:h-9 rounded-lg text-xs sm:text-xs font-semibold
+                  transition-all duration-150 whitespace-nowrap active:scale-95
                   ${active
-                    ? 'bg-cyan-500/15 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.3)]'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]'
+                    ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.4)]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
                   }
                 `}
               >
-                <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span className="hidden sm:inline">{label}</span>
                 <span className="sm:hidden">{shortLabel}</span>
               </button>
