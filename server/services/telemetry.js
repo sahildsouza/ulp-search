@@ -65,7 +65,8 @@ const SOC_DICTIONARY = [
 ];
 
 /**
- * Accurately detects OS, Distro, Kernel, Architecture
+ * Accurately detects OS / Platform in a clean, human-readable format
+ * (e.g. "Termux", "Ubuntu", "Debian", "RHEL", "Windows 11", "macOS")
  */
 export function getOsInfo() {
   if (cachedOsInfo) return cachedOsInfo;
@@ -73,37 +74,60 @@ export function getOsInfo() {
   const platform = process.platform;
   let distro = '';
 
-  if (platform === 'linux') {
-    const isTermux = !!process.env.TERMUX_VERSION || 
-                     !!process.env.PREFIX?.includes('com.termux') || 
-                     fs.existsSync('/data/data/com.termux');
+  // 1. Android / Termux detection
+  const isTermux = !!process.env.TERMUX_VERSION || 
+                   !!process.env.PREFIX?.includes('com.termux') || 
+                   fs.existsSync('/data/data/com.termux') ||
+                   (platform === 'linux' && /android/i.test(os.release()));
 
-    if (isTermux) {
-      let androidVer = '';
+  if (isTermux) {
+    distro = 'Termux';
+  } else if (platform === 'linux') {
+    let prettyName = '';
+    let idName = '';
+    const releaseFiles = ['/etc/os-release', '/usr/lib/os-release'];
+    for (const rf of releaseFiles) {
       try {
-        const cmd = fs.existsSync('/system/bin/getprop') ? '/system/bin/getprop ro.build.version.release' : 'getprop ro.build.version.release';
-        androidVer = execSync(cmd, { encoding: 'utf-8', timeout: 300, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
-      } catch {}
-      distro = `Android ${androidVer ? androidVer + ' ' : ''}(Termux)`.trim();
-    } else {
-      try {
-        if (fs.existsSync('/etc/os-release')) {
-          const content = fs.readFileSync('/etc/os-release', 'utf-8');
-          const m = content.match(/PRETTY_NAME="?([^"\n]+)"?/);
-          if (m) distro = m[1];
+        if (fs.existsSync(rf)) {
+          const content = fs.readFileSync(rf, 'utf-8');
+          const idMatch = content.match(/^ID="?([^"\n]+)"?/m);
+          const prettyMatch = content.match(/^PRETTY_NAME="?([^"\n]+)"?/m);
+          const nameMatch = content.match(/^NAME="?([^"\n]+)"?/m);
+          if (idMatch) idName = idMatch[1].toLowerCase();
+          if (prettyMatch) prettyName = prettyMatch[1];
+          else if (nameMatch) prettyName = nameMatch[1];
+          break;
         }
       } catch {}
-      if (!distro) distro = 'Linux (' + os.release() + ')';
+    }
+
+    const combined = `${idName} ${prettyName}`.toLowerCase();
+    if (/ubuntu/i.test(combined)) distro = 'Ubuntu';
+    else if (/debian/i.test(combined)) distro = 'Debian';
+    else if (/rhel|red\s*hat/i.test(combined)) distro = 'RHEL';
+    else if (/centos/i.test(combined)) distro = 'CentOS';
+    else if (/fedora/i.test(combined)) distro = 'Fedora';
+    else if (/arch/i.test(combined)) distro = 'Arch Linux';
+    else if (/alpine/i.test(combined)) distro = 'Alpine';
+    else if (/kali/i.test(combined)) distro = 'Kali Linux';
+    else if (/mint/i.test(combined)) distro = 'Linux Mint';
+    else if (/manjaro/i.test(combined)) distro = 'Manjaro';
+    else if (/rocky/i.test(combined)) distro = 'Rocky Linux';
+    else if (/alma/i.test(combined)) distro = 'AlmaLinux';
+    else if (/suse|opensuse/i.test(combined)) distro = 'openSUSE';
+    else if (prettyName) {
+      distro = prettyName.replace(/\s*(GNU\/Linux|Linux)\s*/gi, ' ').trim().split(' ')[0] || 'Linux';
+    } else {
+      distro = 'Linux';
     }
   } else if (platform === 'win32') {
     const rel = os.release();
     const build = parseInt(rel.split('.')[2] || '0', 10);
-    const winName = build >= 22000 ? 'Windows 11' : (build >= 10240 ? 'Windows 10' : `Windows (${rel})`);
-    distro = `${winName} (Build ${build})`;
+    distro = build >= 22000 ? 'Windows 11' : (build >= 10240 ? 'Windows 10' : 'Windows');
   } else if (platform === 'darwin') {
-    distro = 'macOS ' + os.release();
+    distro = 'macOS';
   } else {
-    distro = os.type() + ' ' + os.release();
+    distro = os.type() || 'OS';
   }
 
   cachedOsInfo = {
