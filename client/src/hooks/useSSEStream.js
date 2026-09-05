@@ -153,6 +153,7 @@ export function useSSEStream() {
       let partialChunk = '';
       let batchItems = [];
       let lastBatchFlush = Date.now();
+      let reachedTerminalState = false;
 
       const flushBatch = () => {
         if (batchItems.length === 0) return;
@@ -165,6 +166,11 @@ export function useSSEStream() {
           setItems(prev => [...prev, ...currentBatch]);
         }
         setPerFileCounts({ ...perFileRef.current });
+        // Batched metrics update (instead of per-line dispatch)
+        setMetrics(prev => ({
+          ...prev,
+          totalMatches: prev.totalMatches + currentBatch.length
+        }));
       };
 
       while (true) {
@@ -200,11 +206,6 @@ export function useSSEStream() {
                 // Update per-file counts
                 const fn = item.file || 'unknown.txt';
                 perFileRef.current[fn] = (perFileRef.current[fn] || 0) + 1;
-
-                setMetrics(prev => ({
-                  ...prev,
-                  totalMatches: prev.totalMatches + 1
-                }));
               }
             } catch (err) {
               // Ignore non-JSON ping/keepalive
@@ -212,6 +213,7 @@ export function useSSEStream() {
           } else if (line.startsWith('event: done')) {
             // End of stream event
             flushBatch();
+            reachedTerminalState = true;
             setStreamStatus('completed');
           } else if (line.startsWith('event: error')) {
             const errData = lines[i + 1]?.startsWith('data: ') ? lines[i + 1].slice(6) : '{}';
@@ -221,6 +223,7 @@ export function useSSEStream() {
             } catch (e) {
               setError('Stream error occurred');
             }
+            reachedTerminalState = true;
             setStreamStatus('error');
           }
         }
@@ -234,7 +237,7 @@ export function useSSEStream() {
 
       // Final flush
       flushBatch();
-      if (streamStatus !== 'error' && streamStatus !== 'stopped') {
+      if (!reachedTerminalState) {
         setStreamStatus('completed');
       }
     } catch (err) {
@@ -247,7 +250,7 @@ export function useSSEStream() {
         setStreamStatus('error');
       }
     }
-  }, [clearStream, streamStatus]);
+  }, [clearStream]);
 
   return {
     items,

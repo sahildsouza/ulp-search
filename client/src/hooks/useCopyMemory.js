@@ -127,6 +127,21 @@ export function useCopyMemory() {
     return false;
   }, [persistSet]);
 
+  const copyBatchRecords = useCallback((items) => {
+    if (!items || items.length === 0) return;
+    setCopiedSet(prev => {
+      const next = new Set(prev);
+      for (const item of items) {
+        if (!item?.id) continue;
+        next.add(item.id);
+        next.add(`${item.id}:user`);
+        next.add(`${item.id}:pass`);
+      }
+      persistSet(next);
+      return next;
+    });
+  }, [persistSet]);
+
   const clearCopied = useCallback(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -142,6 +157,7 @@ export function useCopyMemory() {
     copyUser,
     copyPass,
     copyRaw,
+    copyBatchRecords,
     copiedCount: copiedSet.size,
     clearCopied
   };

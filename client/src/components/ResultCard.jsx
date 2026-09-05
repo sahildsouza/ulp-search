@@ -12,7 +12,7 @@ const CONFIDENCE_MAP = {
   RED: { cls: 'badge-red', icon: HelpCircle, label: 'UNKNOWN', shortLabel: 'UK' },
 };
 
-export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy, isRawMode, copyMemory }) {
+function ResultCardInner({ item, isSelected, onToggleSelect, isExpanded, onToggleExpand, isCopied, onCopy, isRawMode, copyMemory }) {
   const [justCopied, setJustCopied] = useState(false);
   const [copiedRaw, setCopiedRaw] = useState(false);
   const [justCopiedUser, setJustCopiedUser] = useState(false);
@@ -287,3 +287,14 @@ export function ResultCard({ item, isSelected, onToggleSelect, isExpanded, onTog
     </div>
   );
 }
+
+export const ResultCard = React.memo(ResultCardInner, (prevProps, nextProps) => {
+  return (
+    prevProps.item === nextProps.item &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isExpanded === nextProps.isExpanded &&
+    prevProps.isRawMode === nextProps.isRawMode &&
+    prevProps.isCopied === nextProps.isCopied &&
+    prevProps.copyMemory === nextProps.copyMemory
+  );
+});

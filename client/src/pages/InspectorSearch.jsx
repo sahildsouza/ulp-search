@@ -61,7 +61,8 @@ export function InspectorSearch({ streamState, copyMemory, onNotify }) {
 
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
-      for (const item of selected) copyMemory.copyRecord(item);
+      // Single batch update instead of N individual copyRecord calls
+      copyMemory.copyBatchRecords(selected);
       onNotify?.(`Copied ${selected.length} records`, 'success');
     } catch { onNotify?.('Failed to copy', 'error'); }
   };

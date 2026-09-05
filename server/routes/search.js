@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import readline from 'readline';
 import { parseComboLine } from '../utils/parser.js';
 import { getActiveLogPaths, getLogsDirectory } from '../services/logManager.js';
@@ -35,7 +36,15 @@ export async function searchRoutes(fastify, options) {
 
     if (specificFilesParam) {
       const requested = Array.isArray(specificFilesParam) ? specificFilesParam : specificFilesParam.split(',');
-      targetPaths = requested.map(f => path.join(logsDir, f.trim()));
+      // Sanitize: only allow basenames of .txt files that actually exist in logsDir
+      targetPaths = requested
+        .map(f => path.basename(f.trim()))
+        .filter(f => f.toLowerCase().endsWith('.txt') && !f.startsWith('.'))
+        .map(f => path.join(logsDir, f))
+        .filter(p => {
+          const resolved = path.resolve(p);
+          return resolved.startsWith(path.resolve(logsDir) + path.sep) && fs.existsSync(resolved);
+        });
     } else {
       targetPaths = getActiveLogPaths();
     }
@@ -79,10 +88,12 @@ export async function searchRoutes(fastify, options) {
     const rgPattern = query.length > 0 ? query : '.';
     const rgArgs = [
       '-i',
+      '-a',               // Treat binary/UTF-16 files as text
       '--no-line-number',
       '--mmap',
       '-j', String(threadCount),
       '-H',
+      '-F',               // Fixed-strings (literal match) so special chars like []*() don't fail
       '--',
       rgPattern,
       ...targetPaths

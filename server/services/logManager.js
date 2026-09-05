@@ -2,6 +2,30 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 
+/**
+ * Sanitizes a filename to prevent path traversal attacks.
+ * Strips directory components and verifies the resolved path stays within the target directory.
+ * @param {string} filename - Raw filename from client input
+ * @param {string} dir - The directory the file must reside in
+ * @returns {{ base: string, fullPath: string }} Sanitized basename and full path
+ * @throws {Error} If the resolved path escapes the target directory
+ */
+export function sanitizeFilename(filename, dir) {
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Invalid filename');
+  }
+  const base = path.basename(filename);
+  if (!base || base === '.' || base === '..') {
+    throw new Error('Invalid filename');
+  }
+  const resolved = path.resolve(dir, base);
+  const normalizedDir = path.resolve(dir) + path.sep;
+  if (!resolved.startsWith(normalizedDir) && resolved !== path.resolve(dir, base)) {
+    throw new Error('Path traversal attempt detected');
+  }
+  return { base, fullPath: resolved };
+}
+
 const CACHE_FILENAME = '.ulp_log_cache.json';
 
 // In-memory line count cache keyed by filePath:mtime:size
@@ -224,28 +248,29 @@ export function setFilesActive(filenames, active) {
  */
 export function renameLogFile(oldName, newName) {
   const dir = getLogsDirectory();
-  const safeNewName = newName.endsWith('.txt') ? newName : `${newName}.txt`;
-  const oldPath = path.join(dir, oldName);
-  const newPath = path.join(dir, safeNewName);
+  const { base: safeOldName, fullPath: oldPath } = sanitizeFilename(oldName, dir);
+  const cleanedNew = path.basename(newName);
+  const safeNewName = cleanedNew.endsWith('.txt') ? cleanedNew : `${cleanedNew}.txt`;
+  const { fullPath: newPath } = sanitizeFilename(safeNewName, dir);
 
   if (!fs.existsSync(oldPath)) {
-    throw new Error(`File ${oldName} does not exist`);
+    throw new Error(`File ${safeOldName} does not exist`);
   }
   if (fs.existsSync(newPath)) {
     throw new Error(`Target file ${safeNewName} already exists`);
   }
 
   fs.renameSync(oldPath, newPath);
-  if (excludedFiles.has(oldName)) {
-    excludedFiles.delete(oldName);
+  if (excludedFiles.has(safeOldName)) {
+    excludedFiles.delete(safeOldName);
     excludedFiles.add(safeNewName);
   }
-  if (persistentCache && persistentCache[oldName]) {
-    persistentCache[safeNewName] = persistentCache[oldName];
-    delete persistentCache[oldName];
+  if (persistentCache && persistentCache[safeOldName]) {
+    persistentCache[safeNewName] = persistentCache[safeOldName];
+    delete persistentCache[safeOldName];
     savePersistentCache(dir, persistentCache);
   }
-  return { oldName, newName: safeNewName };
+  return { oldName: safeOldName, newName: safeNewName };
 }
 
 /**
@@ -257,15 +282,19 @@ export function deleteLogFiles(filenames) {
   let cacheModified = false;
 
   for (const fn of filenames) {
-    const fullPath = path.join(dir, fn);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      excludedFiles.delete(fn);
-      deleted.push(fn);
-      if (persistentCache && persistentCache[fn]) {
-        delete persistentCache[fn];
-        cacheModified = true;
+    try {
+      const { base, fullPath } = sanitizeFilename(fn, dir);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        excludedFiles.delete(base);
+        deleted.push(base);
+        if (persistentCache && persistentCache[base]) {
+          delete persistentCache[base];
+          cacheModified = true;
+        }
       }
+    } catch (err) {
+      // Skip invalid filenames (path traversal attempts)
     }
   }
 
