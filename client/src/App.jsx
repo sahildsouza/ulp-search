@@ -35,7 +35,7 @@ export function App() {
     setTimeout(() => setToast(prev => (prev?.message === message ? null : prev)), 3000);
   }, []);
 
-  // Poll system telemetry
+  // Poll system telemetry (fast 500ms polling when actively streaming, 2000ms idle)
   useEffect(() => {
     let live = true;
     const poll = async () => {
@@ -45,9 +45,10 @@ export function App() {
       } catch {}
     };
     poll();
-    const id = setInterval(poll, 2000);
+    const intervalMs = streamState.isStreaming ? 500 : 2000;
+    const id = setInterval(poll, intervalMs);
     return () => { live = false; clearInterval(id); };
-  }, []);
+  }, [streamState.isStreaming]);
 
   const handleFilterByDomain = (domain) => {
     setActiveTab('inspector');

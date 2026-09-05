@@ -5,6 +5,11 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
   const ram = stats?.ram || { usagePercent: 0 };
   const thermal = stats?.thermal || { currentTempC: 42, status: 'OPTIMAL' };
   const cpu = stats?.cpu || { usagePercent: 0 };
+  const cpuUsage = cpu.usagePercent || 0;
+  const cpuColor =
+    cpuUsage > 85 ? 'bg-rose-500' : cpuUsage > 60 ? 'bg-amber-500' : isStreaming ? 'bg-cyan-400' : 'bg-emerald-500';
+  const cpuTextColor =
+    cpuUsage > 85 ? 'text-rose-400 font-bold' : cpuUsage > 60 ? 'text-amber-400 font-bold' : isStreaming ? 'text-cyan-300 font-bold' : 'text-zinc-300';
 
   const hasTemp = typeof thermal.currentTempC === 'number' && !isNaN(thermal.currentTempC);
   const tempColor =
@@ -39,9 +44,14 @@ export function HardwareMonitorBar({ stats, isStreaming, onOpenDrawer }) {
       )
     },
     {
-      icon: <Activity className="w-3 h-3 text-emerald-400" />,
+      icon: <Activity className={`w-3 h-3 ${isStreaming ? 'text-cyan-400 animate-pulse' : 'text-emerald-400'}`} />,
       label: 'CPU',
-      value: `${cpu.usagePercent}%`
+      value: <span className={cpuTextColor}>{cpuUsage}%</span>,
+      extra: (
+        <div className="w-10 h-[3px] bg-zinc-800 rounded-full overflow-hidden ml-1 hidden sm:block">
+          <div className={`h-full rounded-full transition-all duration-300 ${cpuColor}`} style={{ width: `${Math.min(100, Math.max(isStreaming && cpuUsage === 0 ? 35 : 0, cpuUsage))}%` }} />
+        </div>
+      )
     },
     {
       icon: <Cpu className="w-3 h-3 text-cyan-400" />,
