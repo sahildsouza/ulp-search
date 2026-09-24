@@ -82,7 +82,9 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
     if (afterEmail.length > 0) {
       const delimiter = afterEmail[0];
       if ([':', '|', ';', ',', '\t', ' '].includes(delimiter)) {
-        const pass = afterEmail.slice(1).trim();
+        let pass = afterEmail.slice(1).trim();
+        if (pass.includes('\t')) pass = pass.split('\t')[0].trim();
+        else if (pass.includes('  ')) pass = pass.split('  ')[0].trim();
         if (pass.length > 0 && RFC5322_EMAIL_REGEX.test(emailStr)) {
           let domain = emailStr.split('@')[1]?.toLowerCase() || '';
 
@@ -156,6 +158,8 @@ export function parseComboLine(rawLine, filename = 'unknown.txt') {
         }
 
         if (userCandidate.length >= 1 && passCandidate.length > 0) {
+          if (passCandidate.includes('\t')) passCandidate = passCandidate.split('\t')[0].trim();
+          else if (passCandidate.includes('  ')) passCandidate = passCandidate.split('  ')[0].trim();
           const conf = classifyCandidate(userCandidate);
           if (conf === 'EP') {
             domain = userCandidate.split('@')[1]?.toLowerCase() || domain || 'email';
