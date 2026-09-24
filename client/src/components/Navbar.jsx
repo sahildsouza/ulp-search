@@ -16,12 +16,12 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
   const statusLabel = streamStatus === 'connecting' ? 'CONNECTING' : isActive ? 'LIVE' : isPaused ? 'PAUSED' : streamStatus.toUpperCase();
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-black/90 backdrop-blur-lg border-b border-white/[0.06]">
-      <div className="relative max-w-7xl mx-auto h-12 sm:h-14 flex items-center justify-between px-2 sm:px-4 lg:px-8">
+    <header className="sticky top-0 z-40 w-full bg-black/85 backdrop-blur-xl border-b border-cyan-500/10 shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+      <div className="relative max-w-7xl mx-auto h-12 sm:h-14 flex items-center justify-between px-2.5 sm:px-4 lg:px-8 gap-2">
 
         {/* ── Brand ── */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 z-10 flex-shrink-0">
-          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-obsidian-200 border border-cyan-500/25 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.15)] flex-shrink-0">
+          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-obsidian-200 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.2)] flex-shrink-0">
             <Radio className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 ${isActive ? 'animate-pulse' : ''}`} />
             {(isActive || isPaused) && (
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
@@ -30,8 +30,8 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
               </span>
             )}
           </div>
-          <div className="hidden md:block">
-            <span className="text-[13px] sm:text-sm font-bold tracking-wide text-white font-mono-code leading-none">
+          <div className="flex flex-col">
+            <span className="text-[12px] sm:text-sm font-bold tracking-wide text-white font-mono-code leading-none">
               ULP<span className="text-cyan-400">.STREAM</span>
             </span>
             <p className="text-[10px] text-zinc-500 font-mono-code leading-tight hidden lg:block mt-0.5">
@@ -40,9 +40,9 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
           </div>
         </div>
 
-        {/* ── Navigation Tabs (Permanently Fixed in Dead-Center, Proportional Size) ── */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-20">
-          <nav className="pointer-events-auto flex items-center gap-0.5 sm:gap-1 bg-white/[0.04] p-[2px] sm:p-1 rounded-lg sm:rounded-xl border border-white/[0.06] shadow-inner">
+        {/* ── Navigation Tabs (Responsive: Centered on md+, Inline-flex on mobile without collision) ── */}
+        <div className="md:absolute md:left-1/2 md:-translate-x-1/2 flex items-center justify-center z-20 flex-shrink min-w-0">
+          <nav className="flex items-center gap-0.5 sm:gap-1 bg-white/[0.04] p-[2px] sm:p-1 rounded-lg sm:rounded-xl border border-white/[0.08] shadow-inner backdrop-blur-md">
             {TAB_ITEMS.map(({ key, icon: Icon, label, shortLabel }) => {
               const active = activeTab === key;
               return (
@@ -50,10 +50,10 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`
-                    flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 h-7 sm:h-8 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-medium sm:font-semibold
+                    flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 h-7 sm:h-8 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium sm:font-semibold
                     transition-all duration-150 whitespace-nowrap active:scale-95
                     ${active
-                      ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.35)]'
+                      ? 'bg-cyan-500/20 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.4),0_0_12px_rgba(6,182,212,0.2)]'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
                     }
                   `}
@@ -69,7 +69,7 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
 
         {/* ── Right: Stream throughput / status (Right-anchored, Proportional Height) ── */}
         <div className="flex items-center justify-end z-10 flex-shrink-0">
-          <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 h-7 sm:h-8 rounded-md sm:rounded-lg bg-white/[0.03] border border-white/[0.05] font-mono-code text-[10px] sm:text-[11px] tabular-nums min-w-[56px] sm:min-w-[110px] justify-center">
+          <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 h-7 sm:h-8 rounded-md sm:rounded-lg bg-white/[0.03] border border-white/[0.06] font-mono-code text-[10px] sm:text-[11px] tabular-nums min-w-[50px] sm:min-w-[110px] justify-center shadow-sm">
             <span className={`flex items-center gap-1 font-semibold ${isActive ? 'text-cyan-300' : isPaused ? 'text-amber-300' : 'text-zinc-500'}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor} flex-shrink-0`} />
               <span className="hidden sm:inline">{statusLabel}</span>
@@ -93,7 +93,7 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
             <button
               onClick={onLock}
               title="Lock Console (Requires Access Code)"
-              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white/[0.03] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-white/[0.05] hover:border-rose-500/30 transition-all ml-1.5 sm:ml-2 active:scale-95"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white/[0.03] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-white/[0.06] hover:border-rose-500/30 transition-all ml-1.5 sm:ml-2 active:scale-95 shadow-sm"
             >
               <Lock className="w-3.5 h-3.5" />
             </button>
@@ -103,3 +103,4 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
     </header>
   );
 }
+
