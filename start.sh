@@ -94,4 +94,17 @@ echo -e "\n${EMERALD}${BOLD}🚀 Launching ULP Fastify Engine...${NC}\n"
 
 # 8. Start the Fastify Server
 export NODE_ENV=production
+
+if [ "$1" = "--bg" ] || [ "$1" = "-d" ] || [ "$1" = "--background" ]; then
+    echo -e "${CYAN}➜ Running in background (logs: server.log)...${NC}"
+    nohup node server/server.js > server.log 2>&1 &
+    SERVER_PID=$!
+    echo "$SERVER_PID" > .server.pid
+    echo -e "${EMERALD}✓ Fastify Server running in background! (PID: ${SERVER_PID})${NC}"
+    echo -e "${CYAN}➜ Follow logs:   tail -f server.log${NC}"
+    echo -e "${CYAN}➜ Stop server:   kill \$(cat .server.pid)${NC}\n"
+    exit 0
+fi
+
 exec node server/server.js
+

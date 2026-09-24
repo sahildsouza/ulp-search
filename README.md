@@ -23,6 +23,44 @@ This single command automatically:
 
 ---
 
+## 🔄 Running in the Background (Daemon Mode)
+
+To keep the server running continuously after closing your terminal or SSH session:
+
+### Option A: Using `start.sh` (Termux / Linux)
+```bash
+./start.sh --bg
+```
+*(or `./start.sh -d`)*
+
+- **Follow logs:** `tail -f server.log`
+- **Stop server:** `kill $(cat .server.pid)`
+
+### Option B: Using npm scripts
+```bash
+npm run start:bg
+# To stop:
+npm run stop:bg
+```
+
+### Option C: Using PM2 (Production Process Manager)
+```bash
+npm install -g pm2
+pm2 start server/server.js --name "ulp-stream"
+pm2 save
+# Auto-start on system boot:
+pm2 startup
+```
+
+### Option D: Windows (PowerShell)
+```powershell
+Start-Process node -ArgumentList "server/server.js" -WindowStyle Hidden
+# To stop:
+Stop-Process -Name node -Force
+```
+
+---
+
 ## 🌐 Access the Web UI
 
 Since Port 80 is the default HTTP port, you don't even need to type a port number:
