@@ -152,12 +152,8 @@ export function LockScreen({ onAuthenticated }) {
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-2xl font-bold font-mono-code text-white tracking-wide flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-2xl font-bold font-mono-code text-white tracking-wide flex items-center justify-center">
             ULP<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300">.STREAM</span>
-            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              Secured
-            </span>
           </h1>
 
           <p className="text-xs text-zinc-400 font-mono-code mt-2 max-w-[280px] sm:max-w-none leading-relaxed">
