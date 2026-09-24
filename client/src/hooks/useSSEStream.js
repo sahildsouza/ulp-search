@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { authFetch, getAuthToken } from '../utils/auth';
 
 export function useSSEStream() {
   const [items, setItems] = useState([]);
@@ -83,7 +84,7 @@ export function useSSEStream() {
     }
 
     try {
-      await fetch('/api/search/stop', { method: 'POST' });
+      await authFetch('/api/search/stop', { method: 'POST' });
     } catch (e) {}
 
     setStreamStatus('stopped');
@@ -134,8 +135,13 @@ export function useSSEStream() {
     recentMatchesRef.current = [];
     recentBytesRef.current = [];
 
+    const token = getAuthToken();
+    if (token) {
+      params.set('token', token);
+    }
+
     try {
-      const response = await fetch(`/api/search?${params.toString()}`, {
+      const response = await authFetch(`/api/search?${params.toString()}`, {
         signal: controller.signal,
         headers: {
           'Accept': 'text/event-stream'

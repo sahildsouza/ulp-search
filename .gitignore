@@ -126,3 +126,8 @@ gen_dump_*.txt
 test_combo_*.txt
 
 mock_logs/
+
+# Security secrets and persistent local caches
+.access_code
+.session_secret
+.ulp_log_cache.json

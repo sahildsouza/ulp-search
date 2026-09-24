@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FolderSearch, FileText, RefreshCw, Trash2, Edit3, PlusCircle, Folder, Search, X } from 'lucide-react';
 import { formatNumber } from '../utils/formatters';
+import { authFetch } from '../utils/auth';
 
 const LOGS_CACHE_KEY = 'ulp_log_cache_v2';
 
@@ -56,7 +57,7 @@ export function LogExplorer({ onNotify }) {
         ? '/api/logs?refresh=1' 
         : `/api/logs?version=${encodeURIComponent(currentVersion)}`;
         
-      const res = await fetch(url);
+      const res = await authFetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.notModified) {
@@ -89,7 +90,7 @@ export function LogExplorer({ onNotify }) {
 
   const handleToggleFileActive = async (filename, currentActive) => {
     try {
-      const res = await fetch('/api/logs/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename, active: !currentActive }) });
+      const res = await authFetch('/api/logs/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename, active: !currentActive }) });
       if (res.ok) {
         setLogsData(prev => {
           const next = {
@@ -105,7 +106,7 @@ export function LogExplorer({ onNotify }) {
 
   const handleBulkToggleActive = async (active) => {
     try {
-      const res = await fetch('/api/logs/bulk-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: logsData.files.map(f => f.name), active }) });
+      const res = await authFetch('/api/logs/bulk-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: logsData.files.map(f => f.name), active }) });
       if (res.ok) {
         setLogsData(prev => {
           const next = {
@@ -132,7 +133,7 @@ export function LogExplorer({ onNotify }) {
     e.preventDefault();
     if (!renameModal.newName.trim()) return;
     try {
-      const res = await fetch('/api/logs/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldName: renameModal.oldName, newName: renameModal.newName.trim() }) });
+      const res = await authFetch('/api/logs/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldName: renameModal.oldName, newName: renameModal.newName.trim() }) });
       const data = await res.json();
       if (res.ok) {
         onNotify?.(`Renamed to ${data.newName}`, 'success');
@@ -146,7 +147,7 @@ export function LogExplorer({ onNotify }) {
 
   const handleDeleteSubmit = async () => {
     try {
-      const res = await fetch('/api/logs/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: deleteModal.files }) });
+      const res = await authFetch('/api/logs/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filenames: deleteModal.files }) });
       if (res.ok) {
         onNotify?.(`Deleted ${deleteModal.files.length} file(s)`, 'success');
         setDeleteModal({ isOpen: false, files: [] });
