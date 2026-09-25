@@ -2,13 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { HardwareMonitorBar } from './components/HardwareMonitorBar';
 import { SystemStatsDrawer } from './components/SystemStatsDrawer';
-import { LockScreen } from './components/LockScreen';
 import { InspectorSearch } from './pages/InspectorSearch';
 import { LogExplorer } from './pages/LogExplorer';
 import { DomainAnalytics } from './pages/DomainAnalytics';
 import { useSSEStream } from './hooks/useSSEStream';
 import { useCopyMemory } from './hooks/useCopyMemory';
-import { authFetch, getAuthToken, clearAuthToken } from './utils/auth';
 import { CheckCircle, XCircle, Info } from 'lucide-react';
 
 const TOAST_ICON = {
@@ -24,7 +22,6 @@ const TOAST_CLS = {
 };
 
 export function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAuthToken()));
   const [activeTab, setActiveTab] = useState('inspector');
   const [isStatsDrawerOpen, setIsStatsDrawerOpen] = useState(false);
   const [systemStats, setSystemStats] = useState(null);
@@ -38,60 +35,12 @@ export function App() {
     setTimeout(() => setToast(prev => (prev?.message === message ? null : prev)), 3000);
   }, []);
 
-  // Verify stored session token on initial mount
+  // Poll system telemetry continuously
   useEffect(() => {
-    const verifyInitialAuth = async () => {
-      const token = getAuthToken();
-      if (!token) {
-        setIsAuthenticated(false);
-        return;
-      }
-
-      try {
-        const res = await authFetch('/api/auth/status');
-        if (res.ok) {
-          const data = await res.json();
-          setIsAuthenticated(Boolean(data.authenticated));
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch {
-        // Retain optimistic state if network drops temporarily
-      }
-    };
-
-    verifyInitialAuth();
-  }, []);
-
-  // Listen for global 401 unauthorized events from any component
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setIsAuthenticated(false);
-      notify('Session expired or unauthorized. Please re-enter access code.', 'error');
-    };
-
-    window.addEventListener('ulp:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('ulp:unauthorized', handleUnauthorized);
-  }, [notify]);
-
-  // Handle manual lock
-  const handleLock = useCallback(async () => {
-    try {
-      await authFetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    clearAuthToken();
-    setIsAuthenticated(false);
-    notify('Console locked.', 'info');
-  }, [notify]);
-
-  // Poll system telemetry (only when authenticated)
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
     let live = true;
     const poll = async () => {
       try {
-        const res = await authFetch('/api/system-stats');
+        const res = await fetch('/api/system-stats');
         if (res.ok && live) setSystemStats(await res.json());
       } catch {}
     };
@@ -99,7 +48,7 @@ export function App() {
     const intervalMs = streamState.isStreaming ? 500 : 2000;
     const id = setInterval(poll, intervalMs);
     return () => { live = false; clearInterval(id); };
-  }, [isAuthenticated, streamState.isStreaming]);
+  }, [streamState.isStreaming]);
 
   const handleFilterByDomain = (domain) => {
     setActiveTab('inspector');
@@ -109,21 +58,10 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-200 flex flex-col">
-      {/* Super Secure Lock Screen Modal */}
-      {!isAuthenticated && (
-        <LockScreen
-          onAuthenticated={() => {
-            setIsAuthenticated(true);
-            notify('Access granted. Welcome to ULP.STREAM', 'success');
-          }}
-        />
-      )}
-
       <Navbar
         activeTab={activeTab} setActiveTab={setActiveTab}
         streamStatus={streamState.streamStatus} metrics={streamState.metrics}
         systemStats={systemStats} onOpenStatsDrawer={() => setIsStatsDrawerOpen(true)}
-        onLock={handleLock}
       />
 
       <HardwareMonitorBar

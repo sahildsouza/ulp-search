@@ -9,12 +9,10 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { authRoutes } from './routes/auth.js';
 import { searchRoutes } from './routes/search.js';
 import { logRoutes } from './routes/logs.js';
 import { statsRoutes } from './routes/stats.js';
 import { getSystemTelemetry } from './services/telemetry.js';
-import { extractAuthToken, verifySessionToken, getOrInitializeAccessCode } from './services/authService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,29 +29,7 @@ await fastify.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 });
 
-// Universal API Security Gatekeeper Hook
-fastify.addHook('onRequest', async (req, reply) => {
-  if (!req.raw.url || !req.raw.url.startsWith('/api')) {
-    return;
-  }
-  // Allow public auth endpoints
-  if (req.raw.url.startsWith('/api/auth/login') || req.raw.url.startsWith('/api/auth/status')) {
-    return;
-  }
-
-  // Enforce valid session token on all protected API routes
-  const token = extractAuthToken(req);
-  if (!token || !verifySessionToken(token)) {
-    reply.code(401).send({
-      error: 'Unauthorized',
-      message: 'Access denied: valid authentication token required.'
-    });
-    return reply;
-  }
-});
-
 // Register API Routes
-await fastify.register(authRoutes);
 await fastify.register(searchRoutes);
 await fastify.register(logRoutes);
 await fastify.register(statsRoutes);
@@ -131,8 +107,6 @@ const socName = telemetry.soc?.name || os.cpus()[0]?.model?.trim() || 'Generic C
 const osName = telemetry.os?.distro || (isTermux ? 'Termux' : os.type());
 const arch = os.arch();
 
-const activeCode = getOrInitializeAccessCode();
-
 console.log(`\n┌──────────────────────────────────────────────────────────────┐`);
 console.log(`│  🚀 ULP DATA STREAM INSPECTOR · FASTIFY SERVER ONLINE        │`);
 console.log(`├──────────────────────────────────────────────────────────────┤`);
@@ -141,6 +115,5 @@ console.log(`│  📡 Network:  ${networkUrl.padEnd(47)}│`);
 console.log(`│  ⚙️  Platform: ${(osName + ' (' + arch + ')').padEnd(47)}│`);
 console.log(`│  ⚡ Chipset:  ${socName.slice(0, 47).padEnd(47)}│`);
 console.log(`├──────────────────────────────────────────────────────────────┤`);
-console.log(`│  🔒 Security: ENCRYPTED ACCESS CODE REQUIRED                 │`);
-console.log(`│  🔑 Code:     ${activeCode.padEnd(47)}│`);
+console.log(`│  🔓 Access:   Direct Access (No Access Code Required)        │`);
 console.log(`└──────────────────────────────────────────────────────────────┘\n`);

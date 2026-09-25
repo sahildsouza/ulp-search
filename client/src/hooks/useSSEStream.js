@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { authFetch, getAuthToken } from '../utils/auth';
+import { authFetch } from '../utils/auth';
 
 export function useSSEStream() {
   const [items, setItems] = useState([]);
@@ -134,11 +134,6 @@ export function useSSEStream() {
     lastMetricsUpdateRef.current = Date.now();
     recentMatchesRef.current = [];
     recentBytesRef.current = [];
-
-    const token = getAuthToken();
-    if (token) {
-      params.set('token', token);
-    }
 
     try {
       const response = await authFetch(`/api/search?${params.toString()}`, {

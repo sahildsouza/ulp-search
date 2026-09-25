@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, FolderSearch, BarChart3, Radio, Lock } from 'lucide-react';
+import { Search, FolderSearch, BarChart3, Radio } from 'lucide-react';
 import { formatNumber, formatSpeed } from '../utils/formatters';
 
 const TAB_ITEMS = [
@@ -8,7 +8,7 @@ const TAB_ITEMS = [
   { key: 'analytics', icon: BarChart3, label: 'Domain Analytics', shortLabel: 'Stats' }
 ];
 
-export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemStats, onLock }) {
+export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemStats }) {
   const isActive = streamStatus === 'streaming' || streamStatus === 'connecting';
   const isPaused = streamStatus === 'paused';
 
@@ -88,16 +88,6 @@ export function Navbar({ activeTab, setActiveTab, streamStatus, metrics, systemS
               </>
             )}
           </div>
-
-          {onLock && (
-            <button
-              onClick={onLock}
-              title="Lock Console (Requires Access Code)"
-              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white/[0.03] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-white/[0.06] hover:border-rose-500/30 transition-all ml-1.5 sm:ml-2 active:scale-95 shadow-sm"
-            >
-              <Lock className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </div>
     </header>
